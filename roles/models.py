@@ -17,7 +17,7 @@ class Units(models.Model):
 
 
 class Products(models.Model):
-    artikul=models.CharField(verbose_name="Артикул",max_length=6)
+    artikul=models.CharField(verbose_name="Артикул",max_length=6,default="",editable=False)
     name=models.CharField(verbose_name="Название товара",max_length=100)
     image=models.ImageField(verbose_name="Изображение")
     edizm=models.ForeignKey(Units,on_delete=models.CASCADE,verbose_name="Ед.измерения",null=True)
@@ -133,6 +133,26 @@ class Nakl_for_zagot(models.Model):
     class Meta:
         verbose_name="Накладная для заготовщика"
         verbose_name_plural="Накладные для заготовщика"
+
+class Receivers(models.Model):
+    objects=models.Manager()
+    receiver=models.CharField(max_length=100,verbose_name="Объект списания")
+    def __str__(self):
+        return self.receiver
+    class Meta:
+        verbose_name="Отгрузка"
+        verbose_name_plural="Отгрузка"
+
+class Spis(models.Model):
+    objects=models.Manager()
+    nak_id=models.AutoField(primary_key=True,verbose_name="ID накладной")
+    product=models.CharField(max_length=100,vebose_name="Что")
+    receiver=models.ForeignKey(Receivers,on_delete=models.CASCADE,verbose_name="Кому")
+    kol=models.IntegerField(verbose_name="Сколько")
+    class Meta:
+        verbose_name="Накладная на списание"
+        verbose_name_plural="Накладные на списание"
+
 
 class Ingredients(models.Model):
     product=models.ForeignKey(Products,related_name="product",on_delete=models.CASCADE,verbose_name="Заготовляемый товар")

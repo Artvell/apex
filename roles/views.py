@@ -112,11 +112,12 @@ def get_products(request):
 def spis(request):
     j=request.user.roles.role
     job=Roles.choices[j-1][1]
-    st=Stock.st.filter(ostat__gt=0.0)
+    st=Stock.st.filter(ostat__gt=-0.1)
     table=StockTable(st)
     if request.method=="POST":
         kol=request.POST.get("kol")
         name=request.POST.get("name")
+        rec=request.POST.get("receiv")
         print(name)
         stk=Stock.st.filter(name=name)
         st=stk[0]
@@ -125,6 +126,8 @@ def spis(request):
         else:
             st.kol-=kol
             stk.save()
+            nakl=Spis(product=name,kol=kol,receiver=rec)
+            nakl.save()
             return render(request,"spis1.html",{"text":"Списано"})
 
     else:

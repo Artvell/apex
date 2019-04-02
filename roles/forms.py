@@ -26,7 +26,10 @@ class ZakupForm(forms.Form):
         cost=forms.IntegerField(label="Цена")
 
 class SpisForm(forms.Form):
-    st=Stock.st.filter(ostat__gt=0.0)
+    st=Stock.st.filter(ostat__gt=-0.1)
     s=[n.name for n in st]
+    rec=Receivers.objects.all()
+    receiver=[r.name for r in rec]
     name=forms.ChoiceField(choices=[(k,k) for k in s],label="Товар")
+    receiv=forms.ChoiceField(choices=[(r,r) for r in receiver])
     kol=forms.IntegerField(label="Количество")
