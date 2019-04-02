@@ -1,0 +1,14 @@
+<html>
+    <head>
+        <title>Накладные</title>
+        <meta charset="utf-8">
+    </head>
+    <body>
+    <ul>
+    {% for nakl in naklad %}
+    <li><a href="../nakl?nid={{nakl.nak_id}}">{{nakl}}<a></li>
+    {% endfor %}
+    <p><a href="../profile">В кабинет</a></p>
+</ul>
+</body>
+</html>

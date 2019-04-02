@@ -1,0 +1,17 @@
+{% include "naklad_table.html" %}
+<html>
+    <head>
+        <title>Принятие товара</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <p align="center"><img src="/media/{{link}}"></p>
+        <p align="center">{{product}}<p>
+        <form method="POST">
+            {% csrf_token %}
+        <table>
+            {{ form }}
+        </table>
+        <input type="submit" value="Следующий" >
+    </form>

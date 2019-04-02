@@ -1,0 +1,14 @@
+{% include "profile.html" %}
+{% load render_table from django_tables2 %}
+{% load staticfiles %}
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        {% render_table table %}
+        <center><a href="nak_id">Принять товар</a></center>
+        <center><a href="naklad">Накладные</a></center>
+        <center><a href="spis">Списать</a></center>
+    </body>
+</html>

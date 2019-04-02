@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Прием товаров</title>
+</head>
+<body>
+    <form method="POST" action="get_products" target="_blank">
+        {% csrf_token %}
+    <table>
+        {{ form }}
+    </table>
+    <input type="submit" value="Ok" >
+</form>
+</body>
+</html>
