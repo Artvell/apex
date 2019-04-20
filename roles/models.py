@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 #импорты для изменения данных одновременно с юзер
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+import datetime
 # Create your models here.
 class Units(models.Model):
     unit=models.Manager()
@@ -17,10 +17,11 @@ class Units(models.Model):
 
 
 class Products(models.Model):
+    objects=models.Manager()
     artikul=models.CharField(verbose_name="Артикул",max_length=6,default="",editable=False)
     name=models.CharField(verbose_name="Название товара",max_length=100)
     image=models.ImageField(verbose_name="Изображение")
-    edizm=models.ForeignKey(Units,on_delete=models.CASCADE,verbose_name="Ед.измерения",null=True)
+    edizm=models.ForeignKey(Units,on_delete=models.PROTECT,verbose_name="Ед.измерения",null=True)
     prigot=models.BooleanField(verbose_name="Приготавливаемый товар?")
     def __str__(self):
         return self.name
@@ -48,18 +49,40 @@ class Postavsh(models.Model):
         verbose_name="Поставщик"
         verbose_name_plural="Поставщики"
 
+class CustomDelete(models.QuerySet):
+    def delete(self,*args,**kwargs):
+        for obj in self:
+            if obj.ostat==0.0:
+                obj.delete()
+
 class Stock(models.Model):
-    st=models.Manager()
-    name=models.OneToOneField(Products,on_delete=models.CASCADE,verbose_name="Товар",null=True)
-    kolvo=models.IntegerField(verbose_name="Кол-во")
-    scena=models.IntegerField(verbose_name="Ср.цена",default=1)
+    objects=CustomDelete.as_manager()
+    name=models.OneToOneField(Products,on_delete=models.PROTECT,verbose_name="Товар",null=True)
+    kolvo=models.FloatField(verbose_name="Кол-во")
+    scena=models.FloatField(verbose_name="Ср.цена",default=1)
     summ=models.FloatField(verbose_name="Сумма",default=0.0)
     rashod=models.IntegerField(verbose_name="Ср.расход в день",default=1)
-    ostat=models.FloatField(verbose_name="Осталось на складе",default=0.0)
-    shtrih=models.IntegerField(verbose_name="Штрих-код")
+    ostat=models.FloatField(verbose_name="Осталось на складе",default=0.0,editable=False)
+    shtrih=models.CharField(verbose_name="Штрих-код",editable=False,max_length=50)
     #ostat=models.IntegerField(verbose_name="Остаток на дни",default=kolvo/rashod,editable=False)
     maks_zakup=models.IntegerField(verbose_name="Закупка на дни",default=1)
     min_zakup=models.IntegerField(verbose_name="Миним.дни для закупки",default=1)
+    def save(self,*args,**kwargs):
+        d=datetime.datetime.strftime(datetime.datetime.now(),"%d%m%Y")
+        i=str(self.name.id).zfill(3)
+        name=self.name.name
+        sh=str(i)+str(d)
+        self.kolvo=round(self.kolvo,3)
+        self.ostat=round(self.ostat,3)
+        self.scena=round(self.scena,3)
+        self.shtrih=sh
+        self.ostat+=self.kolvo
+        super(Stock,self).save(*args,**kwargs)
+    def delete(self,*args,**kwargs):
+        if self.ostat==0.0:
+            super(Stock,self).delete(*args,**kwargs)
+    def __str__(self):
+        return self.name.name
     class Meta:
         verbose_name=" На склад"
         verbose_name_plural="Склад"
@@ -67,7 +90,7 @@ class Stock(models.Model):
 class Purchase(models.Model):
     pur=models.Manager()
     nak_id=models.CharField(verbose_name="Номер накладной",max_length=50)
-    name=models.OneToOneField(Products,on_delete=models.CASCADE,verbose_name="Товар")
+    name=models.OneToOneField(Products,on_delete=models.PROTECT,verbose_name="Товар")
     last_cost=models.FloatField(verbose_name="Последняя цена")
     kolvo=models.FloatField(verbose_name="Требуемое кол-во")
     min_srok=models.IntegerField(verbose_name="Мин.срок годности")
@@ -111,15 +134,15 @@ class Dop_types(models.Model):
 
 class Dop_money(models.Model):
     objects=models.Manager()
-    nak_id=models.ForeignKey(Purchase,on_delete=models.CASCADE,verbose_name="Номер накладной")
-    dop_type=models.ForeignKey(Dop_types,on_delete=models.CASCADE,verbose_name="Тип расхода")
+    nak_id=models.ForeignKey(Purchase,on_delete=models.PROTECT,verbose_name="Номер накладной")
+    dop_type=models.ForeignKey(Dop_types,on_delete=models.PROTECT,verbose_name="Тип расхода")
     money=models.IntegerField(verbose_name="Сумма")
     class Meta:
         verbose_name="Дополнительные расходы"
         verbose_name_plural="Дополнительные расходы"
     
 class Nakl_for_zagot(models.Model):
-    name=models.OneToOneField(Products,on_delete=models.CASCADE,verbose_name="Товар")
+    name=models.OneToOneField(Products,on_delete=models.PROTECT,verbose_name="Товар")
     tkolvo=models.FloatField(verbose_name="Требуемое количество")
     is_accepted=models.BooleanField(verbose_name="Накладная принята?")
     pkolvo=models.FloatField(verbose_name="Приготовленное количество")
@@ -146,8 +169,8 @@ class Receivers(models.Model):
 class Spis(models.Model):
     objects=models.Manager()
     nak_id=models.AutoField(primary_key=True,verbose_name="ID накладной")
-    product=models.CharField(max_length=100,vebose_name="Что")
-    receiver=models.ForeignKey(Receivers,on_delete=models.CASCADE,verbose_name="Кому")
+    product=models.CharField(max_length=100,verbose_name="Что")
+    receiver=models.ForeignKey(Receivers,on_delete=models.PROTECT,verbose_name="Кому")
     kol=models.IntegerField(verbose_name="Сколько")
     class Meta:
         verbose_name="Накладная на списание"
@@ -155,8 +178,8 @@ class Spis(models.Model):
 
 
 class Ingredients(models.Model):
-    product=models.ForeignKey(Products,related_name="product",on_delete=models.CASCADE,verbose_name="Заготовляемый товар")
-    ingr=models.ForeignKey(Products,related_name="ingr",on_delete=models.CASCADE,verbose_name="Ингридиент")
+    product=models.ForeignKey(Products,related_name="product",limit_choices_to={"prigot":True},on_delete=models.PROTECT,verbose_name="Заготовляемый товар")
+    ingr=models.ForeignKey(Products,related_name="ingr",on_delete=models.PROTECT,verbose_name="Ингридиент")
     kolvo=models.IntegerField(verbose_name="Кол-во на 1 удиницу товара")
     class Meta:
         verbose_name="Ингридиент для приготовляемых товаров"
@@ -173,8 +196,8 @@ class Roles(models.Model):
         (7,"Пиццекассир")
     ]
     profile=models.Manager()
-    user = models.OneToOneField(User, on_delete=models.CASCADE,verbose_name="Работник")
-    place = models.ForeignKey(Pizzerias,on_delete=models.CASCADE,verbose_name="Пиццерия",null=True,blank=True)
+    user = models.OneToOneField(User, on_delete=models.PROTECT,verbose_name="Работник")
+    place = models.ForeignKey(Pizzerias,on_delete=models.PROTECT,verbose_name="Пиццерия",null=True,blank=True)
     role = models.IntegerField(blank=True,verbose_name="Роль",choices=choices,null=True)
     class Meta:
         verbose_name="Роль"

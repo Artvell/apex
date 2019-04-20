@@ -2,8 +2,12 @@ from django.contrib import admin
 from roles.models import *
 # Register your models here.
 
-class StockAdmin(admin.ModelAdmin):
-    list_display=("name","kolvo","scena","rashod","summ","ostat","maks_zakup","min_zakup")
+class DontLog:
+    def log_deletion(self, *args):
+        return
+
+class StockAdmin(DontLog,admin.ModelAdmin):
+    list_display=("name","kolvo","scena","rashod","summ","ostat","maks_zakup","min_zakup","shtrih")
 class RolesAdmin(admin.ModelAdmin):
     list_display=("user",'place','role')
 
@@ -11,7 +15,7 @@ class PizAdmin(admin.ModelAdmin):
     list_display=("id","name")
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display=("artikul","name","image","edizm","prigot")
+    list_display=("id","name","image","edizm","prigot")
 
 class UnitAdmin(admin.ModelAdmin):
     list_display=("edizm","opis")

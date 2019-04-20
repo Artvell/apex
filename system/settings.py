@@ -25,7 +25,7 @@ SECRET_KEY = '^tv1!o_a5wqdjpkrp6)!dbnmymc5=af&2che%ov@fn=!a3@xkl'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -79,7 +79,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': "pizza",
-        'USER': "root",
+        'USER': "django",
         'PASSWORD': "20112014c",
         'HOST': '127.0.0.1',
         'PORT':'3306',

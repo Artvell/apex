@@ -2,7 +2,8 @@ from django import forms
 from .models import *
 
 class NaklForm(forms.Form):
-    #nak_id=forms.CharField(label="Введите ID накладной")
+    kol=forms.IntegerField()
+    nak_id=forms.CharField(label="Введите ID накладной")
     nak=Purchase.pur.filter(is_accepted=0)
     ch=[n.nak_id for n in nak]
     ch=set(ch)
@@ -15,6 +16,7 @@ class GetForm(forms.Form):
     srok=forms.DateField(label="Срок годности")
 
 class Zakup(forms.Form):
+    kol=forms.IntegerField()
     nak=Purchase.pur.filter(is_accepted=0)
     ch=[n.nak_id for n in nak]
     ch=set(ch)
@@ -26,7 +28,7 @@ class ZakupForm(forms.Form):
         cost=forms.IntegerField(label="Цена")
 
 class SpisForm(forms.Form):
-    st=Stock.st.filter(ostat__gt=-0.1)
+    st=Stock.objects.filter(ostat__gt=-0.1)
     s=[n.name for n in st]
     rec=Receivers.objects.all()
     receiver=[r.name for r in rec]
