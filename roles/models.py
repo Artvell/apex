@@ -22,6 +22,11 @@ class Products(models.Model):
     name=models.CharField(verbose_name="Название товара",max_length=100)
     image=models.ImageField(verbose_name="Изображение")
     edizm=models.ForeignKey(Units,on_delete=models.PROTECT,verbose_name="Ед.измерения",null=True)
+    rashod=models.FloatField(verbose_name="Ср.расход в день",default=1)
+    scena=models.FloatField(verbose_name="Ср.цена",default=1)
+    #ostat=models.IntegerField(verbose_name="Остаток на дни",default=kolvo/rashod,editable=False)
+    maks_zakup=models.IntegerField(verbose_name="Закупка на дни",default=1)
+    min_zakup=models.IntegerField(verbose_name="Миним.дни для закупки",default=1)
     prigot=models.BooleanField(verbose_name="Приготавливаемый товар?")
     def __str__(self):
         return self.name
@@ -59,14 +64,8 @@ class Stock(models.Model):
     objects=CustomDelete.as_manager()
     name=models.OneToOneField(Products,on_delete=models.PROTECT,verbose_name="Товар",null=True)
     kolvo=models.FloatField(verbose_name="Кол-во")
-    scena=models.FloatField(verbose_name="Ср.цена",default=1)
     summ=models.FloatField(verbose_name="Сумма",default=0.0)
-    rashod=models.IntegerField(verbose_name="Ср.расход в день",default=1)
     ostat=models.FloatField(verbose_name="Осталось на складе",default=0.0,editable=False)
-    shtrih=models.CharField(verbose_name="Штрих-код",editable=False,max_length=50)
-    #ostat=models.IntegerField(verbose_name="Остаток на дни",default=kolvo/rashod,editable=False)
-    maks_zakup=models.IntegerField(verbose_name="Закупка на дни",default=1)
-    min_zakup=models.IntegerField(verbose_name="Миним.дни для закупки",default=1)
     def save(self,*args,**kwargs):
         d=datetime.datetime.strftime(datetime.datetime.now(),"%d%m%Y")
         i=str(self.name.id).zfill(3)
@@ -74,7 +73,6 @@ class Stock(models.Model):
         sh=str(i)+str(d)
         self.kolvo=round(self.kolvo,3)
         self.ostat=round(self.ostat,3)
-        self.scena=round(self.scena,3)
         self.shtrih=sh
         self.ostat+=self.kolvo
         super(Stock,self).save(*args,**kwargs)

@@ -7,7 +7,7 @@ class DontLog:
         return
 
 class StockAdmin(DontLog,admin.ModelAdmin):
-    list_display=("name","kolvo","scena","rashod","summ","ostat","maks_zakup","min_zakup","shtrih")
+    list_display=("name","kolvo","summ","ostat")
 class RolesAdmin(admin.ModelAdmin):
     list_display=("user",'place','role')
 
@@ -15,7 +15,7 @@ class PizAdmin(admin.ModelAdmin):
     list_display=("id","name")
 
 class ProductAdmin(admin.ModelAdmin):
-    list_display=("id","name","image","edizm","prigot")
+    list_display=("id","name","scena","rashod","maks_zakup","min_zakup","edizm","prigot")
 
 class UnitAdmin(admin.ModelAdmin):
     list_display=("edizm","opis")
