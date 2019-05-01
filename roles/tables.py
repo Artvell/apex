@@ -22,3 +22,11 @@ class ZakupTable(tables.Table):
     class Meta:
         model=Purchase
         template_name = 'django_tables2/bootstrap.html'
+
+class ZagotTable(tables.Table):
+    nak_id=tables.Column()
+    name=tables.Column()
+    tkolvo=tables.Column()
+    class Meta:
+        model = Stock
+        template_name = 'django_tables2/bootstrap.html'

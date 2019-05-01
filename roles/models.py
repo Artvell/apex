@@ -22,8 +22,7 @@ class Products(models.Model):
     name=models.CharField(verbose_name="Название товара",max_length=100)
     image=models.ImageField(verbose_name="Изображение")
     edizm=models.ForeignKey(Units,on_delete=models.PROTECT,verbose_name="Ед.измерения",null=True)
-    rashod=models.FloatField(verbose_name="Ср.расход в день",default=1)
-    scena=models.FloatField(verbose_name="Ср.цена",default=1)
+    rashod=models.IntegerField(verbose_name="Ср.расход в день",default=1)
     #ostat=models.IntegerField(verbose_name="Остаток на дни",default=kolvo/rashod,editable=False)
     maks_zakup=models.IntegerField(verbose_name="Закупка на дни",default=1)
     min_zakup=models.IntegerField(verbose_name="Миним.дни для закупки",default=1)
@@ -45,7 +44,7 @@ class Pizzerias(models.Model):
         verbose_name_plural="Пиццерии"
     
 class Postavsh(models.Model):
-    pos=models.Manager()
+    pos1=models.Manager()
     firm_name=models.CharField(max_length=50,verbose_name="Фирма-поставщик",default="")
     name=models.CharField(max_length=20,verbose_name="Контактное лицо",default="")
     contact=models.CharField(max_length=50,verbose_name="Контактные данные",default="")
@@ -53,6 +52,23 @@ class Postavsh(models.Model):
     class Meta:
         verbose_name="Поставщик"
         verbose_name_plural="Поставщики"
+
+class Codes(models.Model):
+    objects=models.Manager()
+    name=models.ForeignKey(Products,on_delete=models.PROTECT,verbose_name="Товар",null=True)
+    shtrih=models.CharField(verbose_name="Штрих-код",editable=False,max_length=50,default="")
+    kolvo=models.FloatField(verbose_name="Кол-во",default=0.0)
+    def save(self,*args,**kwargs):
+        name=self.name.name
+        d=datetime.datetime.strftime(datetime.datetime.now(),"%d%m%Y")
+        i=str(self.name.id).zfill(3)
+        sh=str(i)+str(d)
+        self.shtrih=sh
+        self.kolvo=round(self.kolvo,3)
+        super(Codes,self).save(*args,**kwargs)
+    class Meta:
+        verbose_name="Штрих код"
+        verbose_name_plural="Штрих коды"    
 
 class CustomDelete(models.QuerySet):
     def delete(self,*args,**kwargs):
@@ -67,14 +83,10 @@ class Stock(models.Model):
     summ=models.FloatField(verbose_name="Сумма",default=0.0)
     ostat=models.FloatField(verbose_name="Осталось на складе",default=0.0,editable=False)
     def save(self,*args,**kwargs):
-        d=datetime.datetime.strftime(datetime.datetime.now(),"%d%m%Y")
-        i=str(self.name.id).zfill(3)
-        name=self.name.name
-        sh=str(i)+str(d)
         self.kolvo=round(self.kolvo,3)
         self.ostat=round(self.ostat,3)
-        self.shtrih=sh
         self.ostat+=self.kolvo
+        self.ostat=round(self.ostat,3)
         super(Stock,self).save(*args,**kwargs)
     def delete(self,*args,**kwargs):
         if self.ostat==0.0:
@@ -86,20 +98,19 @@ class Stock(models.Model):
         verbose_name_plural="Склад"
 
 class Purchase(models.Model):
-    pur=models.Manager()
-    nak_id=models.CharField(verbose_name="Номер накладной",max_length=50)
-    name=models.OneToOneField(Products,on_delete=models.PROTECT,verbose_name="Товар")
+    objects=models.Manager()
+    nak_id=models.IntegerField(verbose_name="Номер накладной")
+    name=models.ForeignKey(Products,on_delete=models.PROTECT,verbose_name="Товар")
     last_cost=models.FloatField(verbose_name="Последняя цена")
     kolvo=models.FloatField(verbose_name="Требуемое кол-во")
-    min_srok=models.IntegerField(verbose_name="Мин.срок годности")
-    is_accepted=models.BooleanField(verbose_name="Накладная принята?")
-    purchased_kol=models.FloatField(verbose_name="Купленное кол-во")
-    new_cost=models.FloatField(verbose_name="Цена")
+    min_srok=models.DateField(verbose_name="Мин.срок годности",null=True)
+    is_accepted=models.BooleanField(verbose_name="Накладная принята?",default=False)
+    purchased_kol=models.FloatField(verbose_name="Купленное кол-во",default=0.0)
+    new_cost=models.FloatField(verbose_name="Цена",default=0.0)
     summ=models.FloatField(verbose_name="Сумма",default=0.0)
-    fact_kol=models.FloatField(verbose_name="Фактическое кол-во")
-    srok=models.DateField(verbose_name="Срок годности",null=True)
-    shtrih=models.IntegerField(verbose_name="Штрих-код")
-    is_delivered=models.BooleanField(verbose_name="Поступил на склад?")
+    fact_kol=models.FloatField(verbose_name="Фактическое кол-во",default=0.0)
+    srok=models.DateField(verbose_name="Cрок годности",null=True)
+    is_delivered=models.BooleanField(verbose_name="Поступил на склад?",default=False)
     class Meta:
         verbose_name="Накладная для закупки"
         verbose_name_plural="Накладная для закупки"
@@ -140,7 +151,7 @@ class Dop_money(models.Model):
         verbose_name_plural="Дополнительные расходы"
     
 class Nakl_for_zagot(models.Model):
-    name=models.OneToOneField(Products,on_delete=models.PROTECT,verbose_name="Товар")
+    name=models.ForeignKey(Products,on_delete=models.PROTECT,limit_choices_to={"prigot":True},verbose_name="Товар")
     tkolvo=models.FloatField(verbose_name="Требуемое количество")
     is_accepted=models.BooleanField(verbose_name="Накладная принята?")
     pkolvo=models.FloatField(verbose_name="Приготовленное количество")
@@ -176,12 +187,22 @@ class Spis(models.Model):
 
 
 class Ingredients(models.Model):
+    objects=models.Manager()
     product=models.ForeignKey(Products,related_name="product",limit_choices_to={"prigot":True},on_delete=models.PROTECT,verbose_name="Заготовляемый товар")
     ingr=models.ForeignKey(Products,related_name="ingr",on_delete=models.PROTECT,verbose_name="Ингридиент")
     kolvo=models.IntegerField(verbose_name="Кол-во на 1 удиницу товара")
     class Meta:
         verbose_name="Ингридиент для приготовляемых товаров"
         verbose_name_plural="Ингридиенты для приготовляемых товаров"    
+
+class LastCost(models.Model):
+    objects=models.Manager()
+    product=models.ForeignKey(Products,on_delete=models.PROTECT,verbose_name="Продукт")
+    cost=models.FloatField(verbose_name="Последняя цена",default=0.0)
+    def save(self,*args,**kwargs):
+        self.cost=round(self.kolvo,3)
+        super(LastCost,self).save(*args,**kwargs)
+
 
 class Roles(models.Model):
     choices=[
