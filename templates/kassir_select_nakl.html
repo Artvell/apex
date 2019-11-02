@@ -1,0 +1,19 @@
+{% include "profile.html" %}
+{% load render_table from django_tables2 %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Прием товаров</title>
+</head>
+<body>
+    <form method="POST" action="./accept">
+        {% csrf_token %}
+    <table>
+        {{ form }}
+    </table>
+    <input type="submit" value="Принять накладную" >
+    <a href="/accounts/profile">Назад</a>
+</form>
+</body>
+</html>

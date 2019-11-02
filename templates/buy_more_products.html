@@ -1,0 +1,117 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Закупка</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <style>
+            table {
+                /*width: 300px; /* Ширина таблицы */
+                border: 1px solid black; /* Рамка вокруг таблицы */
+                margin: auto; /* Выравниваем таблицу по центру окна  */
+                border-collapse: collapse;
+                }
+            td {
+                text-align: center; /* Выравниваем текст по центру ячейки */
+                }
+        </style>
+        <script type="text/javascript">
+            function summ(){
+                var s=0.0;
+                var elements = document.getElementsByClassName("ssumm")
+                for (var elem of elements)
+                {
+                    s+=parseFloat(elem.value);
+                }
+                document.getElementById("summ").innerHTML=s.toFixed(3)
+            }
+            function refresh(i){
+                var ind1="c"+i;
+                var ind2="k"+i;
+                var ind3="s"+i;
+                var n1=document.getElementById(ind1).value;
+                var n2=document.getElementById(ind2).value;
+                document.getElementById(ind3).value=parseFloat(n1)*parseFloat(n2);
+                summ()
+            }
+            function flag(i){
+                var f="f"+i;
+                var ind3="s"+i;
+                var ind1="c"+i;
+                var ind2="k"+i;
+                var fl=document.getElementById(f).value;
+                if (fl == 1) {
+                    document.getElementById(ind3).value=parseFloat(0)
+                    document.getElementById(f).value=0
+                }
+                else{
+                    var n1=document.getElementById(ind1).value;
+                    var n2=document.getElementById(ind2).value;
+                    document.getElementById(ind3).value=parseFloat(n1)*parseFloat(n2);
+                    document.getElementById(f).value=1
+                }
+                summ()
+            }
+        </script>
+    </head>
+    <body>
+        <form method="POST" id="form">
+            {% csrf_token %}
+        <table border="1px">
+        {% if indic == 1 %}
+            <caption><center><b>Заказанные продукты</b></center><br/><br/></caption>
+        {% else %}
+            <caption><center><b>Другие товары у этого продавца</b></center><br/><br/></caption>
+        {% endif %}
+            <tr>
+                <th>    </th>
+                <th>Продукт</th>
+                <th>Продавец</th>
+                <th>Цена</th>
+                <th>Кол-во</th>
+                <th>Мин. срок годности</th>
+                <th>Срок годности:</th>
+                <th>Сумма</th>
+            </tr>
+            {% for i in range %}
+            <tr>
+                <td style="width: 100px;"><input type="hidden" name="check" value="0"><input id="f{{i}}" type="checkbox" name="check" form="form" value="1" checked onchange=flag({{i}})></td>
+                <td><select name="products" form="form"><option value="{{ids|index:i}}">{{products|index:i}}</option></select></td>
+                {% if ind == 1 %}
+                    <td><select name="saler" form="form">
+                    {% for sal in salers|index:i %}
+                        {% for s in sal %}
+                        <option value="{{s}}">{{s}}</option>
+                        {% endfor %}
+                    {% endfor %}
+                    </select></td>
+                {% else %}
+                    <td><input type="text" value="{{saler}}" name="saler" readonly form="form"></td>
+                {% endif %}
+                <td><input id="c{{i}}" type="text" value="{{costs|index:i}}" name="costs" form="form" onchange=refresh({{i}})></td>
+                <td><input id="k{{i}}" type="text" value="{{kolvo|index:i}}" name="kolvo" form="form" onchange=refresh({{i}})></td>
+                <td><input type="date" name="min_srok" value="{{srok|index:i}}" form="form" readonly></td>
+                <td><input type="date" name="date" form="form"></td>
+                <td><input id="s{{i}}" class="ssumm" type="text" value="{{summ|index:i}}" name="summ" readonly form="form"></td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td colspan="7" height="45px">Итого:</td>
+                <td height="45px" id="summ">{{all_summ}}</td>
+            </tr>
+        </table>
+        </form>
+        {% if indic == 1 %}
+            <p align="center">
+            <input type="submit" name="button_1" form="form" value="Подтвердить" >
+            </p>
+        {% else %}
+            <p align="center">
+                <input type="submit" name="button_1" form="form" value="Купить" >
+                <input type="submit" name="button_2" form="form" value="Заказать">
+            </p>
+        {% endif %}
+        <a href="/accounts/profile/buy_products?sort=salers">Список товаров</a>
+    </body>
+</html>

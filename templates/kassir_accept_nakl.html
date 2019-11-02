@@ -1,0 +1,18 @@
+{% include "profile.html" %}
+
+{% load staticfiles %}
+<html>
+    <head>
+        <title>Принятие накладной</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+    <p align="center">Стоимость накладной: {{cost}} сум<br/>
+    <a href="/accounts/profile/accepted?nak_id={{nak_id}}">Принять</a>
+    </p>
+    <br/>
+    <a href="../choose">Назад</a>
+    <br/>
+    </body>
+</html>

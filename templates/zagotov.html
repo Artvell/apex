@@ -1,30 +1,30 @@
 {% include "profile.html" %}
 {% load render_table from django_tables2 %}
-{% load custom_templates %}
+{% load staticfiles %}
 <html>
     <head>
-        <title>Заготовка товара</title>
-        <meta charset="utf-8">
+    <title>Заготовка</title>
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
     </head>
     <body>
-    {% render_table table %}
     {% if indic == 1 %}
-    {% for i in range %}
-    </br>
-    Продукт: {{ products|index:i }}
     <br/>
-    Нужно заготовить: {{kol|index:i}}
-        <form method="POST" id="form">
+    У вас непринятая накладная!<a href="/accounts/profile/zagot/accept">Принять</a>
+    <br/>
+    {% endif %}
+    {% if f == 1 %}
+    <br/>
+    У вас непринятые ингридиенты! <a href="/accounts/profile/zagot/accept_products?n={{last_id}}">Принять</a>
+    <br/>
+    {% endif %}
+        <form method="POST" action="/accounts/profile/zagot/list/">
             {% csrf_token %}
         <table>
-            {{ forms|index:i }}
+            {{ form }}
         </table>
-            <input type="submit" form="form" value="Отправить" >
-    {% endfor %}
-        </form>
-    {% else %}
-        <h3><center>Нет заявок на заготовку</center></h3>
-    {% endif %}
+        <input type="submit" value="Ok" >
+    </form>
+    <br/>
+    <a href="/accounts/profile/returned/zagot">Возврат</a>
     </body>
 </html>

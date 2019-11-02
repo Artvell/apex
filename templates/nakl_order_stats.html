@@ -1,0 +1,44 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Накладные на списание</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <style>
+            table {
+                /*width: 300px; /* Ширина таблицы */
+                border: 1px solid black; /* Рамка вокруг таблицы */
+                margin: auto; /* Выравниваем таблицу по центру окна  */
+                border-collapse: collapse;
+                }
+            td {
+                text-align: center; /* Выравниваем текст по центру ячейки */
+                }
+        </style>
+    </head>
+    <body>
+    <table border="4px">
+        <caption><center><b>{{product.name}}</b></center><br/><br/></caption>
+        <tr>
+            <th>№</th>
+            <th>Кому</th>
+            <th>Дата</th>
+            <th>Количество</th>
+        </tr>
+        {% for s in spis %}
+        <tr>
+            <td height="45">{{s.nak_id}}</td>
+            <td>{{s.receiver}}</td>
+            <td>{{s.date}}</td>
+            <td>{{s.kol}}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td colspan="3">Итого списано:</td>
+            <td><b>{{all_spis}}</b></td>
+        </tr>
+        <br/>
+    </table>
+    </body>
+</html>

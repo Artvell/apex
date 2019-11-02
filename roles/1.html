@@ -1,0 +1,26 @@
+<html>
+<head>
+    <script type='text/javascript'>
+        function hide(){
+            if (document.getElementById("container").style.display=="none") {
+                document.getElementById("container").style.display="block";
+                document.getElementById("hide_button").innerHTML ="Скрыть";
+            }
+            else {
+                document.getElementById("container").style.display="none";
+                document.getElementById("hide_button").innerHTML ="Открыть";
+            }
+        }
+    </script>
+</head>
+<body>
+    <button id="hide_button" onclick="hide()">Скрыть</button>
+    <br/>
+    <div id="container">
+        <br/>
+    !!!!!!!!!!!!!
+    </div>
+
+
+</body>
+</html>

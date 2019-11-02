@@ -1,0 +1,19 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Заказанный товар</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <ul>
+        {% for saler in salers %}
+            <li><a href="./table?n={{nak_id}}&s={{saler.saler.id}}">{{saler.saler.name}}</a></li>
+        {% endfor %}
+        </ul>
+        <br/>
+        <br/>
+        <a href="/accounts/profile/buy_products">Назад</a>
+    </body>
+</html>

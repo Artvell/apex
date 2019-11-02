@@ -1,0 +1,51 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Закупка {{ product.name.name }}</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <style type="text/css">
+        #wrapper {
+            font-size: 200%;
+            overflow:auto;
+            height:300px;
+        }
+        </style>
+    </head>
+    <body>
+    {% if indic == 1 %}
+        <script type="text/javascript">alert("Не подходит срок! Для соблюдения срока нужно купить:{{kol}}")</script>
+    {% endif %}
+    <dl>
+        <dt>{{ product.name.name }}</dt>
+            <dd>Нужно закупить: {{product.kolvo}}</dd>
+            <dd>Последняя цена: {{ product.last_cost }}</dd>
+            <dd>Мин.срок годности: {{ product.min_srok }}</dd>
+    </dl>
+    {% if product.purchased_kol == 0.0 %}
+        <form method="POST" id="form">
+            {% csrf_token %}
+            <table>
+                {{ form }}
+            </table>
+            <input type="submit" form="form" value="Отправить" >
+        </form>
+        <div id="wrapper">
+            <ul>
+            {% for s in salers %}
+                <li>{{s.saler.name}} {{s.last_cost}}</li>
+            {% endfor %}
+        </div>
+    {% else %}
+        <font color="green" size="5">Закуплено: <i>{{product.purchased_kol}}</i></font>
+        <br/>
+        <font color="blue" size="5">Другие товары у этого продавца: </font>
+        <ul>
+        {% for product in another %}
+            <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}&s={{ saler.id }}">{{ product.name.name }}</a></li>
+        {% endfor %}
+    {% endif %}
+
+    </body>
+</html>

@@ -1,0 +1,1655 @@
+# -*- coding: utf-8 -*-
+from django.shortcuts import render,redirect
+from django.http import Http404
+from .models import *
+from .tables import *
+from .forms import *
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required,permission_required
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
+from django_tables2 import RequestConfig
+from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
+from datetime import datetime,timedelta
+from escpos.printer import Network
+
+import barcode
+from barcode.writer import ImageWriter
+from transliterate import translit
+from transliterate.exceptions import LanguageDetectionError
+
+def generate_barcode(pid,date):
+    i=str(pid).zfill(4)
+    d=datetime.strftime(date,"%d%m%Y")
+    sh=str(i)+str(d)
+    return sh
+
+def print_barcode(name,product,d1,d2,barcod): #печать чеков у заготовщика при приготовлении товара
+    code = Network("192.168.101.216") #Printer IP Address
+    if d1!="@":
+        d1=datetime.strftime(d1,r"%d-%m-%Y %H:%M:%S")
+    else:
+        d1=datetime.now()
+    d2=datetime.strftime(d2,r"%d-%m-%Y %H:%M:%S")
+    try:
+        product=translit(product,reversed=True)
+    except LanguageDetectionError:
+        product=product
+    try:
+        name=translit(name,reversed=True)
+    except LanguageDetectionError:
+        name=name
+    code.set(align="right")
+    code.text(" \n")
+    code.text(f"Product: {product}\nZagotovshik: {name}\nProizvedeno: {d1}\nGoden do: {d2}\n")
+    code.barcode(barcod, 'EAN13', 64, 2, '', '')
+    code.text(" \n")
+    #code.cut()
+
+def print_barcode_2(product,d,barcod): #печать чеков на складе (от закупщика)
+    code = Network("192.168.101.216")
+    d=datetime.strftime(d,r"%d-%m-%Y")
+    try:
+        product=translit(product,reversed=True)
+    except LanguageDetectionError:
+        product=product
+    code.set(align="right")
+    code.text(" \n")
+    code.text(" \n")
+    code.text(f"{product}\nGoden do: {d}\n")
+    code.barcode(barcod, 'EAN13',102, 2,align_ct=False)
+    code.text(" \n")
+    #code.cut()
+
+def trash(): # пустой чек для закупщика
+    code = Network("192.168.101.216")
+    code.set(align="right")
+    code.text(" \n")
+    code.text(" \n")
+    code.text(" \n")
+    code.text(" \n")
+    code.barcode("000000000000", 'EAN13',70, 2,align_ct=False)
+    code.text(" \n")
+    code.text(" \n")
+
+def trash2(): # пустой чек для заготовщика
+    code = Network("192.168.101.216")
+    code.set(align="right")
+
+def draw_barcode(barcod):
+    EAN = barcode.get_barcode_class('ean')
+    ean=EAN(barcod,writer=ImageWriter())
+    fullname = ean.save('ean13_barcode')
+    return fullname
+
+roles={
+    1:"sklad.html",
+    2:"kassir.html",
+    3:"zakup.html",
+    4:"zagotov.html",
+    5:"pizzamaker.html",
+    6:"dostavka.html",
+    7:"pizzakassir.html"
+}
+
+# Create your views here.
+@login_required
+def profile(request):
+    n=request.user.first_name
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==1:
+        table=StockTable(Stock.objects.all())
+        RequestConfig(request).configure(table)
+        nak_id=int(Nakl_for_zagot.objects.all()[len(Nakl_for_zagot.objects.all())-1].nak_id)
+        print(nak_id)
+        not_given=Nakl_for_zagot.objects.filter(Q(nak_id=nak_id)&Q(is_given=False))
+        if len(not_given)==0:
+            return render(request,roles[j],{"user":n,"job":job,"table":table})
+        else:
+            return render(request,roles[j],{"indic":1,"nak_id":nak_id,"user":n,"job":job,"table":table})
+    elif j==3:
+        if request.method!="POST":
+            form=Zakup(Purchase.objects.filter(is_accepted_zakup=True))
+            products=Purchase.objects.filter(is_accepted_zakup=False)
+            print("!!!",len(products))
+            indic=0
+            ppurch=Purchase.objects.filter(Q(purchased_kol=0.0)&Q(is_accepted_zakup=True))
+            int_ppurch=[int(pp.nak_id) for pp in ppurch]
+            max_nakl=max(int_ppurch)
+            print("*****",max_nakl)
+            purch=Purchase.objects.filter(Q(purchased_kol=0.0)&Q(is_accepted_zakup=True)&Q(nak_id=str(max_nakl)))
+            print([p.nak_id for p in purch])
+            cost=0.0
+            print(purch)
+            for pur in purch:
+                cost+=round((float(pur.last_cost)*pur.kolvo),3)
+            print(cost)
+            all_money=Nakl_money_zakup.objects.filter(Q(name__username=request.user.username)&Q(types__types="Наличные"))
+            money=0.0
+            for m in all_money:
+                money+=m.kolvo
+            money=round(money,3)
+            b=Purchase.objects.filter(purchased_kol__gt=0.0)
+            balans=money
+            for bb in b:
+                balans-=bb.summ
+            balans=round(balans,3)
+            not_accepted=Purchase.objects.filter(Q(is_accepted=False)&Q(purchased_kol__gt=0.0))
+            debt=0.0
+            unrealized=Purchase.objects.filter(Q(is_accepted_zakup=True)&Q(purchased_kol=0.0))
+            unrealized_uniq=[]
+            unrealized_uniq_id=[]
+            for u in unrealized:
+                if u.nak_id not in unrealized_uniq_id:
+                    unrealized_uniq_id.append(u.nak_id)
+                    unrealized_uniq.append(u)
+            for n in not_accepted:
+                debt+=n.summ
+            if len(products)!=0:
+                idd=products[0].nak_id
+                indic=1
+                return render(request,"zakup.html",{"indic":indic,"job":job,"form":form,"id":idd,"cost":cost,"all":money,"balans":balans,"debt":debt,"unrealized":unrealized_uniq})
+            else:
+                return render(request,"zakup.html",{"indic":indic,"job":job,"form":form,"cost":cost,"all":money,"balans":balans,"debt":debt,"unrealized":unrealized_uniq})
+    elif j==4:
+        j=request.user.roles.role
+        products=Nakl_for_zagot.objects.filter(is_accepted=False)
+        form=Zagot(Nakl_for_zagot.objects.filter(is_accepted=True))
+        zagot_nakls=Nakl_for_zagot.objects.filter(Q(is_accepted=True)&Q(user__user__username=request.user.username))
+        l_id=[int(n.nak_id) for n in zagot_nakls]
+        last_id=max(l_id)
+        given_products=Nakl_for_zagot.objects.filter(Q(is_accepted=True)&Q(user__user__username=request.user.username)&Q(nak_id=last_id)&Q(is_given=True))
+        print("!!!",given_products)
+        if len(given_products)>0:
+            f=1
+        else:
+            f=0
+        if len(products)>0:
+            indic=1
+        else:
+            indic=0
+        return render(request,roles[j],{"job":job,"form":form,"indic":indic,"f":f,"last_id":last_id})
+    elif j==2:
+        abs_nakl=Purchase.objects.all()
+        nakl=Purchase.objects.filter(is_accepted=False)
+        nakl_money=Nakl_money_zakup.objects.filter(types__types="Наличные")
+        nakl_money_other=Nakl_money_other.objects.all()
+        nakl_closed=Purchase.objects.filter(is_accepted=True)
+        table=NaklTable(abs_nakl)
+        all_nak=[]
+        for nak in abs_nakl:
+            if nak.nak_id not in all_nak:
+                all_nak.append(nak.nak_id)
+        not_accepted=[]
+        for n in nakl:
+            if n.nak_id not in not_accepted:
+                not_accepted.append(n.nak_id)
+        all_n=len(all_nak)
+        accepted=len(all_nak)
+        not_acc=len(not_accepted)
+        for k in not_accepted:
+            if k in all_nak:
+                accepted-=1
+        other=all_n-accepted
+        money=0.0
+        money2={t.types:0.0 for t in Types_of_money.objects.all()}
+        closed=0.0
+        for nak in nakl_money:
+            money+=nak.kolvo
+        for n in nakl_money_other:
+            money2[n.types.types]+=n.kolvo
+            money2[n.types.types]=format(money2[n.types.types],".3f")
+        for p in nakl_closed:
+            closed+=p.summ
+        money=format(money,".3f")
+        print("@@@@@ ",money2)
+        closed=format(closed,".3f")
+        balans=Moneys.objects.all()
+        return render(request,roles[j],{"all":all_n,"accepted":accepted,"other":other,"money":money,"money2":money2,"closed":closed,"job":job,"balans":balans})
+    else:
+        return render(request,roles[j],{"user":n,"job":job})
+
+@csrf_exempt
+@login_required
+def printing_barcodes(request):
+    j=request.user.roles.role
+    if j==1:
+        if request.method=="POST":
+            barcod=request.POST.get("barcod")
+            kol=int(request.POST.get("kol"))
+            date=f"{barcod[-8:-6]}-{barcod[-6:-4]}-{barcod[-4:]}"
+            ddate=datetime.strptime(date,r"%d-%m-%Y").date()
+            print(ddate)
+            print(barcod)
+            print("$$$$$$$$$$$$$$$$",int(barcod[:-8]))
+            product=Products.objects.get(id=int(barcod[:-8])).name
+            for i in range(kol):
+                print_barcode_2(product,ddate,barcod)
+            trash()
+            return None
+        else:
+            return None
+    elif j==4:
+        if request.method=="POST":
+            barcod=request.POST.get("barcod")
+            kol=int(request.POST.get("kol"))
+            date=f"{barcod[-8:-6]}-{barcod[-6:-4]}-{barcod[-4:]}"
+            ddate=datetime.strptime(date,r"%d-%m-%Y").date()
+            product=Products.objects.get(id=int(barcod[:-8])).name
+            for i in range(kol):
+                print_barcode(product,"@",ddate,barcod)
+            trash2()
+            return None
+        else:
+            return None
+
+@csrf_exempt
+@login_required
+def product_name(request):
+    j=request.user.roles.role
+    if j==1:
+        if request.method=="POST":
+            from django.http import JsonResponse
+            barcode=request.POST.get('clickId')
+            try:
+                product=Products.objects.get(id=int(barcode[:3]))
+                return JsonResponse({"clickId":product.name})
+            except ObjectDoesNotExist:
+                return JsonResponse({"clickId":"Нет в базе! Проверьте штрих-код!"})
+
+
+
+@login_required
+def table_of_barcodes(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==1:
+        codes=Codes.objects.all()
+        products=[c.name.name for c in codes]
+        barcodes=[c.shtrih for c in codes]
+        kolvo=[c.kolvo for c in codes]
+        return render(request,"codes_table.html",{"range":range(len(codes)),"products":products,"codes":barcodes,"kolvo":kolvo})
+    else:
+        return redirect("/accounts/profile")
+
+
+@login_required
+def select_receiver(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==2:
+        return render(request,"select_receiver.html")
+    else:
+        return redirect(".")
+
+@login_required
+def give_money_zakup(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==2:
+        if request.method=="POST":
+            name=request.POST.get("name")
+            user=User.objects.get(username=name)
+            money=request.POST.get("money")
+            types=request.POST.get("type")
+            m=Moneys.objects.get(types__types=types)
+            m.kolvo-=round(float(money),3)
+            m.save()
+            t=Types_of_money.objects.get(types=types)
+            Nakl_money_zakup(name=user,kolvo=round(float(money),3),types=t).save()
+            return redirect("..")
+        else:
+            money_receivers=User.objects.filter(roles__role=3)
+            print(money_receivers)
+            types=Moneys.objects.filter(kolvo__gt=0.0)
+            form=KassirForm(money_receivers,types)
+            return render(request,"give_money.html",{"form":form,"job":job})
+
+@login_required
+def give_money_other(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==2:
+        if request.method=="POST":
+            name=request.POST.get("name")
+            for_why=request.POST.get("for_why")
+            money=request.POST.get("money")
+            types=request.POST.get("type")
+            m=Moneys.objects.get(types__types=types)
+            m.kolvo-=round(float(money),3)
+            m.save()
+            t=Types_of_money.objects.get(types=types)
+            Nakl_money_other(name=name,kolvo=round(float(money),3),for_why=for_why,types=t).save()
+            return redirect("..")
+        else:
+            types=Moneys.objects.filter(kolvo__gt=0.0)
+            form=KassirForm2(types)
+            return render(request,"give_money.html",{"form":form,"job":job})
+
+@login_required
+def take_money(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==2:
+        if request.method=="POST":
+            types=request.POST.get("type")
+            print("hhhhh ",type(types))
+            kolvo=round(float(request.POST.get("kolvo")),3)
+            print("KKK ",kolvo)
+            try:
+                m=Moneys.objects.get(types__types=types)
+                m.kolvo+=kolvo
+                m.save()
+            except ObjectDoesNotExist:
+                t=Types_of_money.objects.get(types=types)
+                Moneys(types=t,kolvo=kolvo).save()
+            return redirect("/accounts/profile/")
+        else:
+            types=Types_of_money.objects.all()
+            form=KassirTakeMoney(types)
+            return render(request,"take_money.html",{"form":form})
+
+@login_required
+def choose_naklad(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==2:
+        form=NaklForm2(Purchase.objects.filter(is_accepted=0))
+        return render(request,"kassir_select_nakl.html",{"form":form})
+    else:
+        raise Http404
+
+@login_required
+def accept_naklad(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    print(j)
+    print(request.method)
+    if j==2:
+        if request.method=="POST":
+            nak_id=request.POST.get("nak_id")
+            products=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_accepted=False)&Q(is_delivered=True))
+            cost=0.0
+            for p in products:
+                cost+=p.summ
+            return render(request,"kassir_accept_nakl.html",{"cost":cost,"nak_id":nak_id})
+    else:
+        return redirect("/accounts/profile")
+
+@login_required
+def accepted_naklad(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    print(j)
+    print(request.method)
+    if j==2 and request.method=="GET":
+        nak_id=request.GET.get("nak_id")
+        nakl=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_delivered=True)).update(is_returned=False,is_accepted=True)
+        return redirect("/accounts/profile/")
+    else:
+        return redirect("/accounts/profile/")
+
+@login_required
+def list_naklad(request):
+    id=request.user.id
+    naklad=Purchase.objects.all()
+    ch=[n.nak_id for n in naklad]
+    ch=set(ch)
+    naklad=sorted(ch)
+    return render(request,"list_naklad.html",{"naklad":naklad})
+
+@login_required
+def get_products(request):
+    if request.method=="POST":
+        j=request.user.roles.role
+        if j==1:
+            nak_id=request.POST.get("nak_id")
+            print(nak_id)
+            url=request.get_full_path().split("/")
+            if url[3]=="zakup":
+                request.session['_old_post_zakup'] = request.POST
+                nak_id=request.POST.get("nak_id")
+                products=Purchase.objects.filter(Q(nak_id=nak_id)&~Q(purchased_kol=0)&Q(is_returned=False))
+                products1=[]
+                for pr in products:
+                    if pr.fact_kol==None:
+                        pr.fact_kol=0.0
+                    if pr.fact_kol>pr.purchased_kol:
+                        continue
+                    else:
+                        products1.append(pr)
+                return render(request,"get_products.html",{"indic":1,"products":products1})
+            elif url[3]=="zagot":
+                request.session['_old_post_zagot'] = request.POST
+                nak_id=request.POST.get("nak_id")
+                form=BarcodeForm()
+                #products=Nakl_for_zagot.objects.filter(Q(nak_id=nak_id)&~Q(pkolvo=0))
+                return render(request,"get_products.html",{"indic":0,"form":form})
+        else:
+            raise Http404
+    else:
+        j=request.user.roles.role
+        url=request.get_full_path().split("/")
+        print(url)
+        if j==1:
+            if url[3]=="zakup":
+                if request.session.get("_old_post_zakup","!")!="!":
+                    nak_id=request.session.get("_old_post_zakup").get("nak_id")
+                    products=Purchase.objects.filter(Q(nak_id=nak_id)&~Q(purchased_kol=0)&Q(is_returned=False))
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    products1=[]
+                    for pr in products:
+                        if pr.fact_kol==None:
+                            pr.fact_kol=0.0
+                        if pr.fact_kol>pr.purchased_kol:
+                            print(pr.fact_kol,pr.purchased_kol,pr.name.name)
+                            continue
+                        else:
+                            products1.append(pr)
+                    return render(request,"get_products.html",{"indic":1,"products":products1})
+                else:
+                    form=NaklForm(Purchase.objects.filter(is_delivered=0).order_by("nak_id"))
+            elif url[3]=="zagot":
+                al=request.GET.get("al")
+                if request.session.get("_old_post_zagot","!")!="!":
+                    nak_id=request.session.get("_old_post_zagot").get("nak_id")
+                    form=BarcodeForm()
+                    if al=="1":
+                        return render(request,"get_products.html",{"indic":0,"form":form,"al":1})
+                    else:
+                        return render(request,"get_products.html",{"indic":0,"form":form})
+                else:
+                    form=NaklForm(Nakl_for_zagot.objects.filter(Q(is_maked=True)&Q(is_returned=False)).order_by("nak_id"))
+            return render(request,"get_nak_id.html",{"form":form})
+        else:
+            raise Http404
+
+@login_required
+def reset_nak_id(request):
+    j=request.user.roles.role
+    url=request.get_full_path().split("/")
+    if j==1:
+        if url[3]=="zakup":
+            request.session["_old_post_zakup"]="!"
+            return redirect("/accounts/profile/zakup/nak_id")
+        elif url[3]=="zagot":
+            request.session["_old_post_zagot"]="!"
+            return redirect("/accounts/profile/zagot/nak_id")
+        else:
+            return redirect("/accounts/profile/")
+    else:
+        return redirect("/accounts/profile/")
+
+@login_required
+def get_barcode(request):
+    if request.method=="POST" and request.user.roles.role==1:
+        barcode=request.POST.get("name")
+        if len(barcode)==13:
+            barcode=barcode[:-1]
+        else:
+            barcode="0"+barcode[:-1]
+        nak_id=request.session.get("_old_post_zagot").get("nak_id")
+        print("!!!",int(barcode[:-9]),nak_id)
+        try:
+            product=Nakl_for_zagot.objects.get(Q(name__id=int(barcode[:-8]))&Q(nak_id=nak_id)&Q(is_maked=True)&Q(in_stock=False)&Q(is_returned=False))
+        except ObjectDoesNotExist:
+            return redirect("/accounts/profile/zagot/get_products?al=1")
+        return redirect(f"/accounts/profile/zagot/get_product?n={nak_id}&id={product.id}")
+    else:
+        return redirect("/accounts/profile")
+
+@login_required
+def get_product(request):
+    url=request.get_full_path().split("/")
+    if request.method=="POST":
+        j=request.user.roles.role
+        if j==1:
+            nak_id=int(request.GET.get("n"))
+            pid=int(request.GET.get("id"))
+            if url[3]=="zakup":
+                product=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=pid))
+                kol=float(request.POST.get("kol"))
+                srok=request.POST.get("srok")
+                shtr_kol=int(request.POST.get("shtr_kol"))
+                srok=datetime.strptime(srok,r"%Y-%m-%d").date()
+                print(srok)
+                if srok<product.min_srok:
+                    print("!!!!!!!!")
+                    return redirect(f"/accounts/profile/zakup/return_product?n={nak_id}&id={pid}")
+                else:
+                    fact_kol=round(kol,3)
+                    if request.session.get("_zakup_fact_kol","!")=="!":
+                        request.session["_zakup_fact_kol"]=fact_kol
+                    else:
+                        request.session["_zakup_fact_kol"]+=fact_kol
+                    if request.session.get("_zakup_pur_kol","!")=="!":
+                        request.session["_zakup_pur_kol"]=product.purchased_kol
+                        print(333,request.session.get("_zakup_pur_kol"))
+                    product.fact_kol=fact_kol
+                    product.purchase=User.objects.get(username=request.user.username)
+                    product.srok=srok
+                    product.is_delivered=True
+                    product.is_returned=False
+                    barcod=generate_barcode(product.name.id,srok)
+                    try:
+                        print(")))))))))))))))))")
+                        c=Codes.objects.get(shtrih=barcod)
+                        c.kolvo+=fact_kol
+                        c.save()
+                    except ObjectDoesNotExist:
+                        print("((((((((((((")
+                        Codes(name=product.name,kolvo=fact_kol,shtrih=barcod).save()
+                    for i in range(shtr_kol):
+                        print_barcode_2(product.name.name,srok,barcod)
+                    trash()
+                    if fact_kol<product.purchased_kol:
+                        print("????????",product.name)
+                        product.purchased_kol=round(product.purchased_kol-fact_kol,3)
+                        product.save()
+                        try:
+                            st=Stock.objects.get(name=product.name)
+                            st.ostat+=round(kol,3)
+                            st.save()
+                        except ObjectDoesNotExist:
+                            Stock(name=product.name,ostat=fact_kol).save()
+                        return redirect(f"/accounts/profile/zakup/get_product?n={nak_id}&id={pid}")
+                    else:
+                        print("#####",request.session.get("_zakup_pur_kol"))
+                        print(request.session.get("_zakup_fact_kol"))
+                        if round(kol,3)>product.purchased_kol:
+                            print("^^^^^^^^^^")
+                            product.fact_kol=round(kol,3)
+                            product.purchase=User.objects.get(username=request.user.username)
+                            product.srok=srok
+                            product.is_delivered=True
+                            product.is_returned=False
+                            product.save()
+                            fact_kol=round(kol,3)
+                        else:
+                            print("((((((((")
+                            product.purchased_kol=round(request.session.get("_zakup_pur_kol"),3)
+                            product.fact_kol=round(float(request.session.get("_zakup_fact_kol")),3)
+                            product.save()
+                        try:
+                            st=Stock.objects.get(name=product.name)
+                            print('$$$$',fact_kol)
+                            st.ostat+=fact_kol
+                            st.save()
+                            request.session["_zakup_fact_kol"]=0.0
+                            request.session["_zakup_pur_kol"]="!"
+                            print("##",request.session.get("_zakup_pur_kol"))
+                        except ObjectDoesNotExist:
+                            Stock(name=product.name,ostat=round(float(request.session.get("_zakup_fact_kol")),3)).save()
+                            request.session["_zakup_fact_kol"]=0.0
+                            request.session["_zakup_pur_kol"]="!"
+                            print("###",request.session.get("_zakup_pur_kol"))
+                        return redirect("/accounts/profile/zakup/get_products")
+            elif url[3]=="zagot":
+                product=Nakl_for_zagot.objects.get(Q(nak_id=nak_id)&Q(id=pid))
+                kol=float(request.POST.get("kol"))
+                fact_kol=round(kol,3)
+                #srok=request.POST.get("srok")
+                #shtr_kol=int(request.POST.get("shtr_kol"))
+                #srok=datetime.datetime.strptime(srok,r"%Y-%m-%d").date()
+                product.ac_kolvo=round(kol,3)
+                #product.srok=srok
+                product.in_stock=True
+                product.is_returned=False
+                product.save()
+                Codes(name=product.name,kolvo=fact_kol,shtrih=product.shtrih).save()
+                try:
+                    st=Stock.objects.get(name=product.name)
+                    st.ostat+=fact_kol
+                    st.save()
+                except ObjectDoesNotExist:
+                    Stock(name=product.name,ostat=round(float(request.session.get("_zakup_fact_kol")),3)).save()
+                return redirect("/accounts/profile/zagot/get_products")
+
+        else:
+            raise Http404
+    else:
+        j=request.user.roles.role
+        if j==1:
+            nak_id=int(request.GET.get("n"))
+            pid=int(request.GET.get("id"))
+            if url[3]=="zakup":
+                product_purchase=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=pid))
+                product=product_purchase.name
+                link=product.image
+                kolvo=product_purchase.kolvo
+                min_srok=product_purchase.min_srok
+                zakup=product_purchase.purchased_kol
+                ed_izm=product_purchase.name.edizm.edizm
+                form=GetForm()
+                return render(request,"get_product.html",{"indic":1,"form":form,"product":product,"link":link,"n":nak_id,"id":pid,"kolvo":kolvo,"min":min_srok,"zakup":zakup,"ed_izm":ed_izm})
+            elif url[3]=="zagot":
+                product_zagot=Nakl_for_zagot.objects.get(Q(nak_id=nak_id)&Q(id=pid))
+                product=product_zagot.name
+                link=product.image
+                kolvo=product_zagot.tkolvo
+                zakup=product_zagot.pkolvo
+                ed_izm=product_zagot.name.edizm.edizm
+                form=GetForm2()
+                return render(request,"get_product.html",{"indic":0,"form":form,"product":product,"link":link,"n":nak_id,"id":pid,"kolvo":kolvo,"zakup":zakup,"ed_izm":ed_izm})
+        else:
+            raise Http404
+
+@login_required
+def return_product(request):
+    j=request.user.roles.role
+    url=request.get_full_path().split("/")
+    if j==1:
+        nak_id=int(request.GET.get("n"))
+        pid=int(request.GET.get("id"))
+        if url[3]=="zakup":
+            product_purchase=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=pid))
+            product_purchase.is_returned=True
+            product_purchase.save()
+            request.session["_zakup_fact_kol"]=0.0
+            request.session["_zakup_pur_kol"]="!"
+            return redirect("/accounts/profile/zakup/get_products")
+        elif url[3]=="zagot":
+            product=Nakl_for_zagot.objects.get(Q(nak_id=nak_id)&Q(id=pid))
+            product.is_returned=True
+            product.save()
+            return redirect("/accounts/profile/zagot/get_products")
+    else:
+        raise Http404
+
+@login_required
+def returned_list(request):
+    j=request.user.roles.role
+    url=request.get_full_path().split("/")
+    if url[-1]=="zakup":
+        if j==3:
+            products=Purchase.objects.filter(is_returned=True)
+            return render(request,"returned.html",{"indic":1,"products":products})
+        else:
+            return redirect("/accounts/profile")
+    elif url[-1]=="zagot":
+        if j==4:
+            products=Nakl_for_zagot.objects.filter(is_returned=True)
+            return render(request,"returned.html",{"indic":2,"products":products})
+        else:
+            return redirect("/accounts/profile")
+    elif url[-1]=="sklad":
+        if j==1:
+            products=Purchase.objects.filter(is_returned=True)
+            prod=Nakl_for_zagot.objects.filter(is_returned=True)
+            return render(request,"returned.html",{"indic":int(3),"products":products,"prod":prod})
+        else:
+            return redirect("/accounts/profile")
+
+
+
+@login_required
+def spis(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if request.method=="POST":
+        rec=request.POST.get("receiv")
+        kol=dict(request.POST).get("kol")
+        name=dict(request.POST).get("name")
+        zagot_id=request.POST.get("zagot_id","!")
+        if zagot_id!="!":
+            f=True
+        else:
+            f=False
+        errors={}
+        spis_codes=[]
+        s_codes=[]
+        l_name=[]
+        print(name)
+        try:
+            last_id=max([int(s.nak_id) for s in Spis.objects.all()])
+        except ValueError:
+            last_id=0
+        for i in range(len(name)):
+            if len(name[i])==13:
+                bar=name[i][1:]
+                bar2=name[i][:-1]
+            else:
+                bar=name[i]
+                bar2="0"+name[i][:-1]
+            if (name[i]=="") or (kol[i]==""):
+                continue
+            print("bbb",bar,bar2)
+            s_codes.append(bar2)
+            try:
+                codes=Codes.objects.get(shtrih=bar2)
+            except ObjectDoesNotExist:
+                pr=Products.objects.get(id=bar2[:4])
+                cd=[]
+                cds=Codes.objects.filter(name=pr)
+                for c in cds:
+                    cd.append(c.shtrih)
+                cd=",".join(cd)
+                errors["Нет такого штрих-кода"]=f"Нет такого штрих-кода. Другие штрих-коды для {pr}:{cd}"
+                continue
+            spis_codes.append(codes)
+            product=Products.objects.get(name=codes.name)
+            l_name.append(product)
+            print(l_name)
+            ccodes=Codes.objects.filter(name=product)
+            ccodes=[datetime.strptime(c.shtrih[-8:],r"%d%m%Y").date() for c in ccodes]
+            print(type(product),product)
+            print("ccc",ccodes)
+            try:
+                print(333333333)
+                stk=Stock.objects.get(name=product)
+                if stk.ostat<float(kol[i]):
+                    print(1)
+                    errors[product]="Недостаточно на складе"
+                    print("???",errors)
+                    continue
+                    #return render(request,"spis1.html",{"text":f"{product}! Недостаточно на складе"})
+                elif codes.kolvo<float(kol[i]):
+                    print(2)
+                    errors[product]="Недостаточно в партии"
+                    continue
+                    #return render(request,"spis1.html",{"text":f"{product}! Недостаточно в партии"})
+                elif len(ccodes)>0:
+                    print(3)
+                    barcode_date=datetime.strptime(bar2[-8:],r"%d%m%Y").date()
+                    for cod in ccodes:
+                        print("@@@",kol[i])
+                        if cod<barcode_date:
+                            errors[product]="Отказано!Вы пытаетесь списать более позднюю партию."
+                            break
+                            #return render(request,"spis1.html",{"text":f"{product}! Отказано!Вы пытаетесь списать более позднюю партию."})
+            except ObjectDoesNotExist:
+                errors[product]="Нет на складе"
+        print(4)
+        print(kol[i])
+        print(errors)
+        if len(errors)==0:
+            print("1111111")
+            for i in range(len(l_name)):
+                stk=Stock.objects.get(name=l_name[i])
+                codes=spis_codes[i]
+                stk.ostat=round(stk.ostat-float(kol[i]),3)
+                codes.kolvo=round(codes.kolvo-float(kol[i]),3)
+                stk.save()
+                codes.save()
+                if codes.kolvo==0.0:
+                    codes.delete()
+                if stk.ostat==0.0:
+                    stk.delete()
+                #print("$$$$$$$$$$$$",Receivers.objects.get(receiver=rec),kol)
+                try:
+                    user_name=translit(request.user.username,reversed=True)
+                except LanguageDetectionError:
+                    user_name=request.user.username
+                nakl=Spis(nak_id=last_id+1,product=s_codes[i],kol=kol[i],receiver=Receivers.objects.get(receiver=rec),user=user_name,date=datetime.now().date()).save()
+                print("!!!!!!!")
+                if f:
+                    Zagot_products(nak_id=zagot_id,product=l_name[i],kol=float(kol[i]),user=Zagot_types.objects.get(user__username=request.user.username),kolvo=0.0).save()
+                    Nakl_for_zagot.objects.filter(Q(nak_id=zagot_id)&Q(user__user__username=request.user.username)).update(is_given=True)
+            #return render(request,"spis1.html",{"text":"Списано"})
+                #return render(request,"spis1.html",{"text":f"{product}! Нет на складе"})
+            return redirect(f"../nakl_order/?nak_id={last_id+1}")
+        else:
+            return render(request,"spis1.html",{"indic":1,"text":errors})
+    else:
+        rec=Receivers.objects.all()
+        form=SpisForm(rec)
+        return render(request,"spisanie.html",{"job":job,"form":form})
+
+@login_required
+def spis_zagot(request):
+    j=request.user.roles.role
+    if j==1:
+        nak_id=int(request.GET.get("n"))
+        zagot_name=[]
+        zagot_users=[]
+        for p in Nakl_for_zagot.objects.filter(Q(nak_id=nak_id)&Q(is_given=False)):
+            if p.user.user.username not in zagot_name:
+                zagot_name.append(p.user.user.username)
+                zagot_users.append(p.user.user)
+        return render(request,"spis_zagot.html",{"zagot":zagot_users,"nak_id":nak_id})
+
+@login_required
+def spis_create_nakl(request):
+    j=request.user.roles.role
+    if j==1:
+        if request.method!="POST":
+            nak_id=int(request.GET.get("n"))
+            uid=int(request.GET.get("u"))
+            products=Nakl_for_zagot.objects.filter(Q(nak_id=nak_id)&Q(is_given=False)&Q(user__user__id=uid))
+            kol=[]
+            ingreds=[]
+            for p in products:
+                print(type(p.name))
+                ingrs=Ingredients.objects.filter(product=p.name)
+                print(ingrs)
+                #ingr=[(i.ingr.name,round(float(i.kolvo)*p.tkolvo,3)) for i in ingrs]
+                for ing in ingrs:
+                    ingreds.append((ing.ingr.name,round(float(ing.kolvo)*p.tkolvo,3)))
+            print(request.user.username)
+            return render(request,"spisanie.html",{"indic":1,"ingr":ingreds,"name":request.user.username,"nak_id":nak_id})
+
+
+@login_required
+def nakl_orders(request):
+    j=request.user.roles.role
+    if j==1:
+        if request.method!="POST":
+            naks=Spis.objects.all()
+            nak=[]
+            products=Products.objects.all()
+            n_id=[]
+            e=request.GET.get("e","!")
+            for n in naks:
+                if n.nak_id not in n_id:
+                    nak.append(n)
+                    n_id.append(n.nak_id)
+            if e=="1":
+                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"indic":1})
+            else:
+                return render(request,"nakl_orders.html",{"naks":nak,"products":products})
+        else:
+            name=request.POST.get("product")
+            try:
+                product=Products.objects.get(name=name)
+            except ObjectDoesNotExist:
+                return redirect("/accounts/profile/nakl_orders/?e=1")
+            prod_id=str(product.id).zfill(4)
+            print(prod_id)
+            spis=Spis.objects.filter(product__startswith=prod_id)
+            all_spis=sum([s.kol for s in spis])
+            all_spis=round(all_spis,3)
+            return render(request,"nakl_order_stats.html",{"spis":spis,"product":product,"all_spis":all_spis})
+    else:
+        return redirect("/accounts/profile")
+
+@login_required
+def nakl_order(request):
+    j=request.user.roles.role
+    if j==1:
+        nak_id=int(request.GET.get("nak_id"))
+        nak=Spis.objects.filter(nak_id=nak_id)
+        receiver=nak[0].receiver.receiver
+        ingr=[s.product for s in nak]
+        kolvo=[s.kol for s in nak]
+        prod=[]
+        ed_izm=[]
+        for p in ingr:
+            print(Products.objects.get(id=int(p[:4])))
+            prod.append(Products.objects.get(id=int(p[:4])).name)
+            ed_izm.append(Products.objects.get(id=int(p[:4])).edizm)
+        return render(request,"nakl_order.html",{"range":range(len(ingr)),"ingr":prod,"kolvo":kolvo,"izm":ed_izm,"name":nak[0].user,"n":nak_id,"date":nak[0].date,"receiver":receiver})
+    else:
+        return redirect("/accounts/profile")
+
+@login_required
+def choose_type(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==1:
+        return render(request,"sklad_select_type.html")
+    else:
+        return redirect("/accounts/profile")
+
+@login_required
+def unrealized(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==3:
+        nak_id=int(request.GET.get("n"))
+        unrealized=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0))
+        summ=0.0
+        for u in unrealized:
+            summ+=round((u.kolvo*u.last_cost),3)
+        return render(request,"zakup_unrealized.html",{"unrealized":unrealized,"summ":summ})
+
+@login_required
+def buy_products(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if request.method=="POST":
+        if j==3:
+            request.session['_old_post'] = request.POST
+            nak_id=request.POST.get("nak_id")
+            products=Purchase.objects.filter(nak_id=nak_id).order_by("name")
+            return render(request,"buy_products.html",{"products":products,"indic":0,"nak_id":nak_id})
+        else:
+            return redirect("/accounts/profile")
+    else:
+        if j==3:
+            nak_id=request.session.get('_old_post').get("nak_id")
+            products=Purchase.objects.filter(nak_id=nak_id).order_by("name")
+            sort=request.GET.get("sort")
+            print(sort)
+            if sort=="salers":
+                sal=Salers.objects.all()
+                sallers=sorted(set([s.saler.name for s in sal]))
+                sorted_products={saller:[s.product.name for s in Salers.objects.filter(saler__name=saller)] for saller in sallers}
+                return render(request,"buy_products.html",{"products":products,"sorted_products":sorted_products,"indic":1,"nak_id":nak_id})
+            elif sort=="category":
+                cat=Categories.objects.all()
+                categories=[c.category for c in cat]
+                print(categories)
+                sorted_products={category:Purchase.objects.filter(Q(nak_id=nak_id)&Q(name__category__category=category)) for category in categories}
+                del_keys=[]
+                for key,value in sorted_products.items():
+                    if len(value)==0:
+                        del_keys.append(key)
+                other_category=[]
+                for p in Purchase.objects.filter(nak_id=nak_id):
+                    for c in categories:
+                        if p not in sorted_products[c] and p not in other_category:
+                            other_category.append(p)
+                other={"Прочее":other_category}
+                for d in del_keys:
+                    del sorted_products[d]
+                sorted_products.update(other)
+                #print("{}{}{}{}",sorted_products)
+                return render(request,"buy_products.html",{"sorted_products":sorted_products,"indic":2,"nak_id":nak_id})
+            else:
+                return render(request,"buy_products.html",{"products":products,"indic":0,"nak_id":nak_id})
+        else:
+            return redirect("/accounts/profile")
+
+@login_required
+def sorted_products(request):
+    j=request.user.roles.role
+    if j==3:
+        if "s" in request.GET:
+            n=request.GET.get("s")
+            nak_id=int(request.GET.get("n"))
+            another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False))
+            name=Postavsh.objects.get(name=n)
+            saler_other=Salers.objects.filter(Q(saler__name=name.name))
+            saler_products=[s.product for s in saler_other]
+            products=[an.name for an in another if an.name in saler_products]
+            costs=[an.last_cost for an in another if an.name in saler_products]
+            kolvo=[an.kolvo for an in another if an.name in saler_products]
+            ids=[an.id for an in another if an.name in saler_products]
+            srok=[datetime.strftime(an.min_srok,"%Y-%m-%d") for an in another if an.name in saler_products]
+            summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
+            all_summ=round(sum(summ),3)
+            costs=[str(c).replace(",",".") for c in costs]
+            kolvo=[str(c).replace(",",".") for c in kolvo]
+            summ=[str(c).replace(",",".") for c in summ]
+            return render(request,"buy_more_products.html",{"products":products,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+        elif "c" in request.GET:
+            nak_id=int(request.GET.get("n"))
+            categ=request.GET.get("c")
+            if categ=="Прочее":
+                another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False)&Q(name__category=None))
+            else:
+                another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False)&Q(name__category__category=categ))
+            products=[an.name for an in another]
+            salers=[[Salers.objects.filter(product=an.name)] for an in another]
+            costs=[an.last_cost for an in another]
+            kolvo=[an.kolvo for an in another]
+            ids=[an.id for an in another]
+            srok=[datetime.strftime(an.min_srok,"%Y-%m-%d") for an in another]
+            summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
+            all_summ=round(sum(summ),3)
+            costs=[str(c).replace(",",".") for c in costs]
+            kolvo=[str(c).replace(",",".") for c in kolvo]
+            summ=[str(c).replace(",",".") for c in summ]
+            return render(request,"buy_more_products.html",{"products":products,"salers":salers,"ind":1,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+
+
+
+@login_required
+def buy_product(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if request.method=="GET":
+        nak_id=request.GET.get("n")
+        product_id=request.GET.get("id")
+        print("s" in request.GET)
+        product=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=product_id))
+        print("PPPPP",product.name)
+        if "s" in request.GET:
+            form=ZakupForm(s=request.GET.get("s"),salers_list=Salers.objects.filter(product=product.name))
+        else:
+            form=ZakupForm(salers_list=Salers.objects.filter(product=product.name))
+        salers=Salers.objects.filter(product=product.name).order_by("last_cost")
+        return render(request,"buy_product.html",{"product":product,"form":form,"salers":salers})
+    elif request.method=="POST":
+        f=True if "button_1" in request.POST else False
+        nak_id=request.GET.get("n")
+        product_id=request.GET.get("id")
+        product=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=product_id))
+        srok=request.POST.get("srok")
+        kol=request.POST.get("kol")
+        summ=request.POST.get("cost")
+        saler=request.POST.get("saler")
+        print("!!!!",saler)
+        if saler==None:
+            return redirect(f"/accounts/profile/buy_product?n={nak_id}&id={product_id}")
+        days=round(float(kol)/product.name.rashod)
+        print(days)
+        real_srok=datetime.today()+timedelta(days=days)
+        print(real_srok)
+        '''if real_srok.date()<product.min_srok:
+            allowed_kol=round((product.min_srok-datetime.strptime(srok,r"%Y-%m-%d").date()).days/product.name.rashod)
+            if "s" in request.GET:
+                form=ZakupForm(s=request.GET.get("s"),salers_list=Salers.objects.filter(product=product.name))
+            else:
+                form=ZakupForm(salers_list=Salers.objects.filter(product=product.name))
+            return render(request,"buy_product.html",{"indic":1,"kol":allowed_kol,"product":product,"form":form})'''
+        saler_name=Postavsh.objects.get(name=saler)
+        product.srok=srok
+        product.purchased_kol=round(float(kol),3)
+        product.summ=summ
+        product.new_cost=round(float(summ)/float(kol),3)
+        product.saler=saler_name
+        if not f:
+            product.is_ordered=True
+        product.save()
+        another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0))
+        saler_other=Salers.objects.filter(Q(saler__name=saler))
+        saler_products=[s.product for s in saler_other]
+        print(saler_products)
+        another_products=[an for an in another if an.name in saler_products]
+        print("&&&&&&",another_products)
+        if f:
+            try:
+                last_cost=LastCost.objects.get(product=product.name)
+                last_cost.cost=round(float(summ)/float(kol),3)
+                last_cost.save()
+            except ObjectDoesNotExist:
+                LastCost(product=product.name,cost=round(float(summ)/float(kol),3)).save()
+        #print("SSS",saler_other)
+        if len(saler_other)!=0:
+            saler_id=Postavsh.objects.get(name=saler).id
+            return redirect(f"/accounts/profile/buy_more_products?n={nak_id}&s={saler_id}")
+            #return render(request,"buy_product.html",{"another":another_products,"saler":saler_other[0],"product":product})
+        else:
+            return render(request,"buy_product.html",{"another":another_products,"product":product})
+
+@login_required
+def buy_more_products(request):
+    j=request.user.roles.role
+    if j==3:
+        if request.method!="POST":
+            nak_id=request.GET.get("n"," ")
+            saler_id=request.GET.get("s"," ")
+            if nak_id==" " or saler_id==" ":
+                return redirect("/accounts/profile/")
+            else:
+                nak_id,saler_id=int(nak_id),int(saler_id)
+                another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False))
+                name=Postavsh.objects.get(id=saler_id)
+                saler_other=Salers.objects.filter(Q(saler__name=name.name))
+                saler_products=[s.product for s in saler_other]
+                products=[an.name for an in another if an.name in saler_products]
+                costs=[an.last_cost for an in another if an.name in saler_products]
+                kolvo=[an.kolvo for an in another if an.name in saler_products]
+                ids=[an.id for an in another if an.name in saler_products]
+                srok=[an.min_srok for an in another if an.name in saler_products]
+                summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
+                all_summ=round(sum(summ),3)
+                costs=[str(c).replace(",",".") for c in costs]
+                kolvo=[str(c).replace(",",".") for c in kolvo]
+                summ=[str(c).replace(",",".") for c in summ]
+                return render(request,"buy_more_products.html",{"products":products,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+        else:
+            print(request.POST)
+            f=True if "button_1" in request.POST else False
+            check=dict(request.POST).get("check")
+            products=dict(request.POST).get("products")
+            saler=request.POST.get("saler")
+            costs=dict(request.POST).get("costs")
+            kolvo=dict(request.POST).get("kolvo")
+            summ=dict(request.POST).get("summ")
+            date=dict(request.POST).get("date")
+            for i in range(len(products)):
+                if check[i]=="1":
+                    prod=Purchase.objects.get(id=products[i])
+                    d=datetime.strptime(date[i],"%Y-%m-%d").date()
+                    cost=costs[i].replace(",",".")
+                    kol=kolvo[i].replace(",",".")
+                    summa=summ[i].replace(",",".")
+                    prod.srok=d
+                    prod.purchased_kol=round(float(kol),3)
+                    prod.summ=round(float(summa),3)
+                    prod.new_cost=round(float(cost),3)
+                    saler_name=Postavsh.objects.get(name=saler)
+                    prod.saler=saler_name
+                    if not f:
+                        prod.is_ordered=True
+                    prod.save()
+                    if f:
+                        try:
+                            last_cost=LastCost.objects.get(product=prod.name)
+                            last_cost.cost=round(float(cost),3)
+                            last_cost.save()
+                        except ObjectDoesNotExist:
+                            LastCost(product=product.name,cost=round(float(cost),3)).save()
+                else:
+                    continue
+            return redirect("/accounts/profile/buy_products")
+
+@login_required
+def ordered_list(request):
+    j=request.user.roles.role
+    if j==3:
+        nak_id=int(request.GET.get("n"))
+        ordered=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_ordered=True))
+        salers=[]
+        salers_id=[]
+        for s in ordered:
+            if s.saler.id not in salers_id:
+                salers.append(s)
+                salers_id.append(s.saler.id)
+        return render(request,"orderedproducts_sorted_list.html",{"salers":salers,"nak_id":nak_id})
+
+@login_required
+def ordered_table(request):
+    j=request.user.roles.role
+    if j==3:
+        nak_id=int(request.GET.get("n"))
+        saler_id=int(request.GET.get("s"))
+        products=Purchase.objects.filter(Q(nak_id=nak_id)&Q(saler__id=saler_id))
+        name=Postavsh.objects.get(id=saler_id)
+        prod=[p.name for p in products]
+        costs=[p.last_cost for p in products]
+        kolvo=[p.kolvo for p in products]
+        srok=[p.min_srok for p in products]
+        ids=[p.id for p in products]
+        summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
+        all_summ=round(sum(summ),3)
+        costs=[str(c).replace(",",".") for c in costs]
+        kolvo=[str(c).replace(",",".") for c in kolvo]
+        summ=[str(c).replace(",",".") for c in summ]
+        return render(request,"buy_more_products.html",{"products":prod,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(prod)),"indic":1})
+
+
+@login_required
+def info(request):
+    j=request.user.roles.role
+    if j==3:
+        month=datetime.now().month
+        nakls=Purchase.objects.filter(date__month=month)
+        nakls_number=[]
+        for nak in nakls:
+            if nak.nak_id not in nakls_number:
+                nakls_number.append(nak.nak_id)
+        all_n=len(nakls_number)
+        vip=0
+        nevip=0
+        nepoln=0
+        for nak_id in nakls_number:
+            v=Purchase.objects.filter(Q(purchased_kol__gt=0.0)&Q(nak_id=nak_id))
+            if len(v)==0:
+                nevip+=1
+                continue
+            else:
+                nev=Purchase.objects.filter(Q(purchased_kol=0.0)&Q(nak_id=nak_id))
+                if len(nev)==0:
+                    vip+=1
+                    continue
+                else:
+                    nepoln+=1
+                    continue
+        return render(request,"info.html",{"all":all_n,"poln":vip,"nepoln":nepoln,"nevip":nevip})
+
+def info_naklad(request):
+    j=request.user.roles.role
+    if j==3:
+        if request.method!="POST":
+            if request.GET.get("e")=="1":
+                return render(request,"info_naklad.html",{"indic":0,"e":1})
+            return render(request,"info_naklad.html",{"indic":0})
+        else:
+            nak_id=request.POST.get("nak_id")
+            date=request.POST.get("date")
+            if nak_id=="" and date=="":
+                return redirect("/accounts/profile/info/naklad")
+            elif nak_id!="":
+                products=Purchase.objects.filter(nak_id=nak_id)
+                if len(products)==0:
+                    return redirect("/accounts/profile/info/naklad?e=1")
+            elif date!="":
+                #date=datetime.strptime(date,"%Y-%m-%d").date()
+                products=Purchase.objects.filter(date=date)
+                if len(products)==0:
+                    return redirect("/accounts/profile/info/naklad?e=1")
+            status="Принята" if products[0].is_accepted==True else "Не принята"
+            all_p=len(products)
+            nak_id=products[0].nak_id
+            v=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol__gt=0.0))
+            vip=len(v)
+            nevip=all_p-vip
+            summ=0.0
+            for product in products:
+                summ+=product.summ
+            return render(request,"info_naklad.html",{"indic":1,"products":products,"all":all_p,"vip":vip,"nevip":nevip,"summ":summ,"nak_id":nak_id,"date":products[0].date,"status":status})
+
+def info_products(request):
+    j=request.user.roles.role
+    if j==3:
+        if request.method!="POST":
+            products=Products.objects.filter(prigot=False)
+            return render(request,"info_product.html",{"indic":0,"products":products})
+        else:
+            product=request.POST.get("product")
+            if "min_date" not in request.POST:
+                srok=Purchase.objects.filter(name__name=product).order_by("date")
+                min_srok=srok[0].date
+                max_srok=srok[len(srok)-1].date
+                print(request.POST)
+                return render(request,"info_product_1.html",{"s_product":product,"min_date":str(min_srok),"max_date":str(max_srok)})
+            else:
+                min_date=request.POST.get("min_date")
+                max_date=request.POST.get("max_date")
+                products=Purchase.objects.filter(Q(date__range=[min_date,max_date])&Q(name__name=product))
+                kolvo=[]
+                for p in products:
+                    if p.fact_kol==None:
+                        p.fact_kol=0.0
+                    kolvo.append(p.fact_kol)
+                start=datetime.strptime(min_date,"%Y-%m-%d")
+                end=datetime.strptime(max_date,"%Y-%m-%d")
+                date_generated = [start + timedelta(days=x) for x in range(0, (end-start).days)]
+                days=[float(d.strftime("%d.%m")) for d in date_generated]
+                name=Products.objects.get(name=product)
+                all_k=0.0
+                for p in products:
+                    if p.fact_kol==None:
+                        p.fact_kol=0.0
+                    all_k+=float(p.fact_kol)
+                all_k=round(all_k,3)
+                return render(request,"info_product_1.html",{"s_product":product,"name":name,"products":products,"diapazon":days,"data":kolvo,"indic":0,"all":all_k,"min_date":min_date,"max_date":max_date})
+
+
+def add_product(request):
+    j=request.user.roles.role
+    if j==3:
+        if request.method!="POST":
+            nak=Purchase.objects.filter(is_accepted_zakup=True)
+            nak_id=max([int(n.nak_id) for n in nak])
+            products=Products.objects.filter(prigot=False)
+            return render(request,"add_product.html",{"nak_id":nak_id,"products":products})
+        else:
+            nak_id=int(request.POST.get("nak_id"))
+            date=Purchase.objects.filter(nak_id=nak_id)[0].date
+            print(date,type(date))
+            name=request.POST.get("product")
+            kol=float(request.POST.get("kolvo"))
+            try:
+                product=Products.objects.get(name=name)
+            except ObjectDoesNotExist:
+                products=Products.objects.filter(prigot=False)
+                return render(request,"add_product.html",{"nak_id":nak_id,"products":products,"indic":1})
+            days=round(kol/product.rashod)
+            now=datetime.today()
+            srok=now+timedelta(days=days)
+            try:
+                last_cost=LastCost.objects.get(product=product).cost
+            except ObjectDoesNotExist:
+                last_cost=0.0
+            Purchase(nak_id=nak_id,name=product,kolvo=kol,min_srok=srok,last_cost=last_cost,fact_kol=0.0,date=date).save()
+            return redirect("/accounts/profile/buy_products")
+
+
+
+
+
+@login_required
+def append_product_for_saler(request):
+    j=request.user.roles.role
+    if j==3:
+        product=Products.objects.get(id=int(request.GET.get("id")))
+        salers=Postavsh.objects.all().order_by("id")
+        n=request.GET.get("n")
+        pid=request.GET.get("pid")
+        if request.method=="POST":
+            diction=request.POST.dict()
+            inform=[(k,diction.get(k)) for k in diction.keys() if k.startswith("saler")]
+            print(inform)
+            for info in inform:
+                saler,cost=info
+                if cost!="":
+                    saler_id=int(saler.split("_")[1])
+                    cost=float(cost)
+                    print(saler_id,cost)
+                    try:
+                        s=Salers.objects.get(Q(saler__id=saler_id)&Q(product=product))
+                        s.product=product
+                        s.last_cost=round(cost,3)
+                        s.save()
+                    except ObjectDoesNotExist:
+                        Salers(saler=Postavsh.objects.get(id=saler_id),product=product,last_cost=round(cost,3)).save()
+                else:
+                    print("!!!")
+                    continue
+            return redirect(f"../buy_product?n={n}&id={pid}")
+        else:
+            form=Add_Product_for_saler(salers)
+            return render(request,"new_product.html",{"form":form,"id":product.id,"n":n,"pid":pid})
+
+@login_required
+def append_saler(request):
+    j=request.user.roles.role
+    if j==3:
+        n=request.GET.get("n")
+        pid=request.GET.get("pid")
+        pr_id=request.GET.get("id")
+        if request.method=="POST":
+            product=Products.objects.get(id=int(pr_id))
+            name=request.POST.get("name")
+            firm_name=request.POST.get("firm_name")
+            phone=request.POST.get("phone")
+            place=request.POST.get("place")
+            cost=float(request.POST.get("cost"))
+            postavsh=Postavsh(name=name,firm_name=firm_name,place=place,contact=phone)
+            postavsh.save()
+            Salers(product=product,last_cost=round(cost,3),saler=postavsh).save()
+            return redirect(f"./buy_product?n={n}&id={pid}")
+        else:
+            form=Add_Saler()
+            return render(request,"new_saler.html",{"form":form})
+
+@login_required
+def accept_products(request):
+    j=request.user.roles.role
+    if request.method=="GET" and j==3:
+        nak_id=request.GET.get("n")
+        nakls=Purchase.objects.filter(nak_id=nak_id).update(is_accepted_zakup=True)
+        return redirect("/accounts/profile")
+
+
+@login_required
+def zagot_product(request):
+    j=request.user.roles.role
+    n=request.GET.get("n")
+    pid=request.GET.get("id")
+    product=Nakl_for_zagot.objects.get(Q(nak_id=n)&Q(id=pid))
+    dop_info=Ingredients_dop_info.objects.get(product=product.name)
+    srok=float(dop_info.srok)
+    procent=float(dop_info.procent)
+    now=datetime.now()
+    d=now+timedelta(hours=srok)
+    if j==4:
+        if request.method=="POST":
+            kol=request.POST.get("product")
+            k=int(request.POST.get("shtr_kol"))
+            kk=k if k>0 else 1
+            ingr=Ingredients.objects.filter(Q(product__name=product.name))
+            spis_ingr=[prod.ingr.name for prod in ingr]
+            bar=generate_barcode(product.name.id,d.date())
+            product.pkolvo=float(kol)
+            product.is_maked=True
+            product.user=Zagot_types.objects.filter(user__username=request.user.username)[0]
+            product.srok=d
+            product.shtrih=bar
+            product.save()
+            for ingr in spis_ingr:
+                Rashod_zagot(nak_id=product,name=Products.objects.get(name=ingr),kol=float(request.POST.get(ingr))).save()
+            for i in range(kk):
+                print_barcode(request.user.username,product.name.name,now,d,bar)
+            trash2()
+            return redirect("/accounts/profile/zagot/list")
+        else:
+            if product.pkolvo>0.0:
+                code=product.shtrih
+                return render(request,"zagot_product.html",{"indic":0,"product":product,"code":code})
+            elif product.pkolvo==0.0:
+                ingr=Ingredients.objects.filter(Q(product__name=product.name))
+                spis_ingr=[prod.ingr.name for prod in ingr]
+                print("ss=",spis_ingr)
+                print("PP=",product.tkolvo)
+                ingr_kolvo=[round(float(ingrr.kolvo)*float(product.tkolvo),3) for ingrr in ingr]
+                form=ZagotForm(Ingredients.objects.filter(Q(product__name=product.name)))
+                return render(request,"zagot_product.html",{"indic":1,"form":form,"product":product,"range":range(len(spis_ingr)),"ingrs":spis_ingr,"needs":ingr_kolvo})
+    else:
+        return redirect("/accounts/profile")
+
+@login_required
+def accept_zagot(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==4:
+        products=Nakl_for_zagot.objects.filter(is_accepted=False)
+        products.update(is_accepted=True)
+        form=Zagot(Nakl_for_zagot.objects.filter(Q(is_maked=False)))
+        return redirect("/accounts/profile")
+        #return render(request,roles[j],{"job":job,"form":form,"indic":0})
+    else:
+        return redirect("/accounts/profile")
+
+
+@login_required
+def accept_zagot_products(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==4:
+        if request.method!="POST":
+            nak_id=request.GET.get("n")
+            e=int(request.GET.get("e",0))
+            products=Zagot_products.objects.filter(Q(nak_id=nak_id)&Q(user__user__username=request.user.username)&Q(status=False)).order_by("product")
+            print(products)
+            return render(request,"accept_products.html",{"products":products,"nak_id":nak_id,"e":e})
+        else:
+            kolvo=dict(request.POST).get("kolvo")
+            nak_id=request.GET.get("n")
+            print(nak_id)
+            try:
+                kolvo=[float(k.replace(",",".")) for k in kolvo]
+            except ValueError:
+                return redirect(f"/accounts/profile/zagot/accept_products?n={nak_id}&e=1")
+            zagot_products=Zagot_products.objects.filter(Q(nak_id=nak_id)&Q(user__user__username=request.user.username)&Q(status=False)).order_by("product")
+            print("###",zagot_products)
+            for i in range(len(kolvo)):
+                print(i)
+                print("!")
+                zagot_products[i].kolvo=10.0
+                print("!!!",zagot_products[i].product)
+                #zagot_products[i].status=True
+                zagot_products[i].save()
+            Nakl_for_zagot.objects.filter(Q(nak_id=nak_id)&Q(user__user__username=request.user.username)&Q(is_taken=False)).update(is_taken=True)
+            return redirect("/accounts/profile/")
+            #print(kolvo)
+
+
+
+@login_required
+def zagot_list(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if request.method=="POST":
+        nak_id=request.POST.get("nak_id")
+        request.session["_old_post"]=request.POST
+    else:
+        nak_id=request.session.get("_old_post").get("nak_id")
+    products=Nakl_for_zagot.objects.filter(Q(nak_id=nak_id)&Q(user__user=User.objects.get(username=request.user.username))).order_by("name")
+    products.update(is_accepted=True)
+    request.session['_old_post'] = request.POST
+    return render(request,"zagot_list.html",{"job":job,"products":products})
+
+# !!!!!!!!!!!!!!!!!!!!!!!
+
+@login_required
+def admin_view(request):
+    if request.user.is_superuser:
+        ingredients=Ingredients.objects.all()
+        ing_names,ing=[],[]
+        for ingred in ingredients:
+            if ingred.product.name not in ing_names:
+                print(ingred.product.name)
+                ing_names.append(ingred.product.name)
+                ing.append(ingred)
+        return render(request,"admin_list.html",{"title":"Ингридиенты","f":1,"ingrs":ing})
+    else:
+        return HttpResponseForbidden("Отказано в доступе")
+
+@permission_required("roles.add_ingridients")
+def add_ingr(request):
+    k=request.GET.get('k')
+    print("k=",k)
+    form=AdminForm(k,Products.objects.filter(prigot=True),Products.objects.all())
+    last_k=int(k)-1 if int(k)-1>0 else 1
+    if request.method=="POST":
+        product=Products.objects.get(name=request.POST.get("product"))
+        p_id=product.id
+        srok=float(request.POST.get("srok"))
+        procent=float(request.POST.get("procent"))
+        Ingredients_dop_info(product=product,srok=srok,procent=procent).save()
+        for i in range(int(k)-1):
+            ingr=request.POST.get(f"ingr_{i+1}")
+            print("ungr=",ingr)
+            idd=Products.objects.get(name=ingr)
+            print("idd ",idd)
+            kol=request.POST.get(f"ingr_kol_{i+1}")
+            Ingredients(product=product,ingr=idd,kolvo=kol).save()
+        return redirect(f"../edit/?id={p_id}&k={int(k)}")
+    else:
+        return render(request,"admin_template.html",{"form":form,"indic":1,"new_k":int(k)+1,"last_k":last_k})
+
+@permission_required("roles.change_ingridients")
+def edit_ingr(request):
+    p_id=request.GET.get('id')
+    product=Products.objects.get(id=p_id)
+    try:
+        dop=Ingredients_dop_info.objects.get(product=product)
+    except ObjectDoesNotExist:
+        dop=Ingredients_dop_info(product=product)
+        dop.save()
+    ingredients=Ingredients.objects.filter(product=product)
+    ing_ingrs={ing:ing.ingr for ing in ingredients}
+    ing_kol={ing:ing.kolvo for ing in ingredients}
+    ids=""
+    for ingrr in ingredients:
+        ids+=(str(ingrr.id)+",")
+    len_i=len(ingredients)
+    k=int(request.GET.get('k',0))
+    ind=1
+    new_k=k+1
+    counter=k
+    if k==0:
+        ind=0
+        k=len(ingredients)+1
+        new_k=k
+        counter=len(ingredients)
+    last_k=int(k)-1 if int(k)-1>0 else 1
+    if request.method=="POST":
+        prod=Products.objects.get(name=request.POST.get("product"))
+        srok=round(float(request.POST.get("srok")),3)
+        procent=float(request.POST.get("procent"))
+        print("$$$$$$",procent)
+        procent=round(procent,3)
+        if dop.srok!=srok:
+            dop.srok=srok
+            dop.save()
+        if dop.procent!=procent:
+            dop.procent=procent
+            dop.save()
+        for i in range(counter-1):
+            print("i=",i)
+            ingr=request.POST.get(f"ingr_{i+1}")
+            print("ingr=",ingr)
+            idd=Products.objects.get(name=ingr)
+            kol=request.POST.get(f"ingr_kol_{i+1}")
+            if product!=prod:
+                ingred=Ingredients.objects.get(Q(product=product)&Q(ingr=idd))
+                ingred.product=prod
+                ingred.save()
+                try:
+                    dopp=Ingredients_dop_info.objects.get(product=prod)
+                    dopp.srok=srok
+                    dopp.procent=procent
+                    dop.delete()
+                    dopp.save()
+                except ObjectDoesNotExist:
+                    dop.delete()
+                    Ingredients(product=prod,srok=srok,procent=procent).save()
+            else:
+                ingred=Ingredients.objects.filter(product=product)
+                for j in range(i,k-1):
+                    try:
+                        ing=ingred[j]
+                        ingg=ing_ingrs.get(ing,0)
+                        if ingg!=0:
+                            if ingg!=idd:
+                                print("!!!")
+                                print(ingg,idd)
+                                ing.ingr=idd
+                            else:
+                                print("???")
+                                print(type(ingg),type(idd))
+                        kkol=ing_kol.get(ing,0)
+                        if kkol!=0:
+                            if kkol!=float(kol):
+                                print(33333)
+                                ing.kolvo=round(float(kol),3)
+                        ing.save()
+                        break
+                    except Exception:
+                        Ingredients(product=product,ingr=idd,kolvo=round(float(kol),3)).save()
+                data={"product":product.name}
+        ids=''
+        for i in ingredients:
+            ids+=(str(i.id)+',')
+        return redirect(f"../edit/?id={p_id}&k={new_k-1}")
+    else:
+        data={"product":product.name}
+        dop_info={"srok":dop.srok,"procent":dop.procent}
+        ids=''
+        for i in ingredients:
+            ids+=(str(i.id)+',')
+        print(ids)
+        d={f"ingr_{i+1}":ingredients[i].ingr.name for i in range(len_i)}
+        d2={f"ingr_kol_{i+1}":ingredients[i].kolvo for i in range(len_i)}
+        data.update(dop_info)
+        data.update(d)
+        data.update(d2)
+        form=AdminForm(initial=data,k=k-1,product=Products.objects.filter(prigot=True),ingreds=Products.objects.all()) if ind==0 else AdminForm(initial=data,k=k,product=Products.objects.filter(prigot=True),ingreds=Products.objects.all())
+        return render(request,"admin_template.html",{"form":form,"indic":0,"new_k":new_k,"last_k":last_k,"p_id":p_id,"len_i":len_i,"id":ids,"ingredients":ingredients})
+
+@permission_required("roles.delete_ingridients")
+def delete_ingr(request):
+    pid=request.GET.get('pid')
+    print("!!!!",pid)
+    ing_ids=request.GET.get('id').split(",")
+    del ing_ids[-1]
+    for ing_id in ing_ids:
+        Ingredients.objects.get(id=int(ing_id)).delete()
+    if len(Ingredients.objects.filter(product__id=int(pid)))==0:
+        return redirect("/admin/roles/ingredients")
+    else:
+        return redirect(f"/admin/roles/ingredients/edit/?id={pid}")
+
+
+#!!!!!!!!!!!!!!!
+
+@login_required
+def admin_view_3(request):
+    if request.user.is_superuser:
+        zakupshiki=User.objects.filter(roles__role=3)
+        return render(request,"admin_list.html",{"title":"Закупщики","f":3,"postavshiki":pos})
+    else:
+        return HttpResponseForbidden("Отказано в доступе")
+
+@permission_required("roles.add_salers")
+def add_saler(request):
+    k=request.GET.get('k')
+    form=AdminForm3(k)
+    last_k=int(k)-1 if int(k)-1>0 else 1
+    if request.method=="POST":
+        saler=request.POST.get("saler")
+        for i in range(int(k)):
+            product=request.POST.get(f"prod_{i+1}")
+            print("product ",product)
+            cost=round(float(request.POST.get(f"prod_cost_{i+1}")),3)
+            Salers(saler=saler,product=product,last_cost=cost).save()
+        return redirect("..")
+    else:
+        return render(request,"admin_template.html",{"form":form,"indic":1,"new_k":int(k)+1,"last_k":last_k})
+
+@permission_required("roles.delete_ingridients")
+def delete_saler(request):
+    ing_ids=request.GET.get('id').split(",")
+    del ing_ids[-1]
+    for ing_id in ing_ids:
+        Ingredients.objects.get(id=int(ing_id)).delete()
+    return redirect("..")
+

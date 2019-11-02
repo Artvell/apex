@@ -1,0 +1,31 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Накладные на списание</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+    {% if indic == 1 %}
+    <script type="text/javascript">alert("Такого продукта нет в базе!\nПопробуйте снова")</script>
+    {% endif %}
+    <form method="POST" id="form">
+            {% csrf_token %}
+            <b>Продукт</b>
+            <input type="text" list="products" name="product" form="form" autocomplete="off">
+            <datalist id="products">
+            {% for product in products %}
+                <option>{{product.name}}</option>
+            {% endfor %}
+            </datalist>
+            <input type="submit" value="Добавить">
+            <br/>
+    </form>
+        <ul>
+        {% for nak in naks %}
+            <li><a href="../nakl_order/?nak_id={{nak.nak_id}}">{{nak.nak_id}} ({{nak.date}})</a></li>
+        {% endfor %}
+        </ul>
+    </body>
+</html>

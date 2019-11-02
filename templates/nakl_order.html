@@ -1,0 +1,76 @@
+{% load custom_templates %}
+{% include "profile.html" %}
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>Накладная</title>
+  <script type="text/javascript">
+  function printPageArea(areaID){
+    var printContent = document.getElementById(areaID);
+    var WinPrint = window.open('', '', 'width=900,height=650');
+    WinPrint.document.write(printContent.innerHTML);
+    WinPrint.document.close();
+    WinPrint.focus();
+    WinPrint.print();
+    WinPrint.close();
+}
+  </script>
+  <style>
+   table {
+    /*width: 300px; /* Ширина таблицы */
+    border: 1px solid black; /* Рамка вокруг таблицы */
+    margin: auto; /* Выравниваем таблицу по центру окна  */
+    border-collapse: collapse;
+   }
+   td {
+    text-align: center; /* Выравниваем текст по центру ячейки */
+   }
+   #table
+   {
+    margin:auto;
+   }
+  @media print {
+    /* здесь будут стили для печати */
+     table {
+      /*width: 300px; /* Ширина таблицы */
+      border: 1px solid black; /* Рамка вокруг таблицы */
+      margin: auto; /* Выравниваем таблицу по центру окна  */
+      border-collapse: collapse;
+   }
+      #table{
+      margin:auto;
+    }
+    }
+</style>
+ </head>
+ <body>
+ <div id="table" style="border-collapse: collapse;">
+  <table border="1px">
+   <caption><br/>Накладная № {{n}}<br/>{{date}}<br/><br/><br/></caption>
+   <tr>
+    <th>Ингридиент</th>
+    <th>Ед.изм.</th>
+    <th>Кол-во</th>
+    <th>Принято?</th>
+   </tr>
+   {% for i in range %}
+      <tr>
+      <tr><td style="width: 500px;">{{ingr|index:i}}</td>
+      <td style="width: 100px;">{{izm|index:i}}</td>
+      <td style="width: 200px;">{{kolvo|index:i}}</td>
+      <td style="width: 200px;"> </td></tr>
+    {% endfor %}
+    <tr><td colspan="2" height="25px">Кимга:</td>
+    <td colspan="2" height="25px">{{receiver}}</td></tr>
+    <tr><td colspan="2" height="25px">Жавобгар шахс:</td>
+    <td colspan="2" height="25px">{{name}}</td></tr>
+    <tr><td colspan="2" height="25px">Кабул килувчи: </td>
+    <td colspan="2" height="25px"></td></tr>
+  </table>
+  <br/><br/><br/>
+
+</div>
+<button onclick="printPageArea('table')">Печать</button>
+ </body>
+</html>

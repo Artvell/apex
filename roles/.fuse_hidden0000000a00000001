@@ -1,0 +1,114 @@
+from django import forms
+from .models import *
+from django.db.models import Q
+
+class NaklForm(forms.Form):
+    def __init__(self,nak, *args, **kwargs):
+        super(NaklForm, self).__init__(*args, **kwargs)
+        ch=[n.nak_id for n in nak]
+        ch=set(ch)
+        ch=list(ch)
+        self.fields['nak_id'] = forms.ChoiceField(choices=[(n,n) for n in ch],label="Номер накладной")
+
+class NaklForm2(forms.Form):
+    def __init__(self,nak, *args, **kwargs):
+        super(NaklForm2, self).__init__(*args, **kwargs)
+        ch=[n.nak_id for n in nak]
+        ch=set(ch)
+        ch=list(ch)
+        self.fields['nak_id'] = forms.ChoiceField(choices=[(n,n) for n in ch],label="Номер накладной")
+
+class Zagot(forms.Form):
+    def __init__(self,nak, *args, **kwargs):
+        super(Zagot, self).__init__(*args, **kwargs)
+        print(nak)
+        ch=[n.nak_id for n in nak]
+        ch=set(ch)
+        ch=list(ch)
+        self.fields["nak_id"] = forms.ChoiceField(choices=[(n,n) for n in ch],label="Номер накладной")
+
+class GetForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super(GetForm, self).__init__(*args, **kwargs)
+        self.fields['kol']=forms.FloatField(label="Количество")
+        #shtrih=forms.IntegerField(label="Штрих код")
+        self.fields['srok']=forms.DateField(label="Срок годности")
+        self.fields['shtr_kol']=forms.IntegerField(label="Количество штрих-кодов")
+
+class GetForm2(forms.Form):
+    kol=forms.FloatField(label="Количество")
+
+class BarcodeForm(forms.Form):
+    name=forms.CharField(label="Штрих-код")
+
+class Zakup(forms.Form):
+    def __init__(self,nak, *args, **kwargs):
+        super(Zakup, self).__init__(*args, **kwargs)
+        #kol=forms.IntegerField()
+        ch=[n.nak_id for n in nak]
+        ch=set(ch)
+        ch=list(ch)
+        self.fields['nak_id'] = forms.ChoiceField(choices=[(n,n) for n in ch],label="Номер накладной")
+
+class ZakupForm(forms.Form):
+    def __init__(self,salers_list,*args,**kwargs):
+        if "s" in kwargs:
+            sal=kwargs.pop("s")
+        else:
+            sal=0
+        super(ZakupForm,self).__init__(*args, **kwargs)
+        salers=list(set([s.saler for s in salers_list]))
+        self.fields["srok"]=forms.DateField(label="Срок годности",required=False)
+        self.fields["kol"]=forms.FloatField(label="Количество",required=False)
+        self.fields["cost"]=forms.FloatField(label="Общая цена",required=False)
+        #print("##",salers[0])
+        self.fields["saler"]=forms.ChoiceField(choices=[(s,s) for s in salers],label="Продавец",required=False)
+        if int(sal)!=0:
+            self.fields["saler"].initial=[(1,1)]
+
+class SpisForm(forms.Form):
+    def __init__(self,rec, *args, **kwargs):
+        super(SpisForm, self).__init__(*args, **kwargs)
+        receiver=[r.receiver for r in rec]
+        self.fields['name']=forms.CharField(label="Товар")
+        self.fields['receiv']=forms.ChoiceField(choices=[(r,r) for r in receiver],label="Объект списания")
+        self.fields['kol']=forms.FloatField(label="Количество")
+
+class ZagotForm(forms.Form):
+    def __init__(self,ingr, *args, **kwargs):
+        super(ZagotForm, self).__init__(*args, **kwargs)
+        self.fields[f"product"] = forms.FloatField(label="Заготовлено")
+        spis_ingr=[prod.ingr.name for prod in ingr]
+        print(spis_ingr)
+        for j in range(len(spis_ingr)):
+            self.fields[spis_ingr[j]]=forms.FloatField()
+        self.fields['shtr_kol']=forms.IntegerField(label="Количество штрих-кодов")
+
+class KassirForm(forms.Form):
+    def __init__(self,money_receivers,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        names=list(set(m.name for m in money_receivers))
+        self.fields["name"]=forms.ChoiceField(choices=[(m,m.name) for m in money_receivers],label="Кому")
+        self.fields["money"]=models.FloatField(verbose_name="Сколько")
+
+
+class AdminForm(forms.Form):
+    def __init__(self,k,product,ingreds,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        #edizm=product.edizm.edizm
+        self.fields["product"]= forms.ChoiceField(choices=[(n.name,n.name+" (1"+n.edizm.edizm+")") for n in product],label=f"Продукт (1 единица)")
+        for i in range(1,int(k)+1):
+            print(k)
+            self.fields[f"ingr_{i}"]=forms.ChoiceField(choices=[(n.name,n.name) for n in ingreds],label="Ингридиент")
+            self.fields[f"ingr_kol_{i}"]=forms.FloatField(label="Нужно")
+
+class AdminForm3(forms.Form):
+    def __init__(self,k,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        salers=Postavsh.objects.all()
+        products=Products.objects.filter(prigot=False)
+        self.fields["saler"]= forms.ChoiceField(choices=[(saler,saler.name) for saler in salers],label="Продавец")
+        for i in range(1,int(k)+1):
+            print(k)
+            self.fields[f"prod_{i}"]=forms.ChoiceField(choices=[(prod,prod.name) for prod in products],label="Товар")
+            self.fields[f"prod_cost_{i}"]=forms.FloatField(label="Последняя цена")

@@ -1,0 +1,14 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+    <br/>
+    <ul>
+        {% for z in zagot %}
+        <li><a href="/accounts/profile/spis/zagot/create_nakl?n={{nak_id}}&u={{z.id}}">{{z.username}}</li>
+        {% endfor %}
+    </ul>
+    </body>
+</html>

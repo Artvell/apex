@@ -1,0 +1,84 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Выборка накладных</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+        <style>
+            .more details + details {
+                    margin-top: 1em;
+                }
+            .more summary {
+                font-weight: 700;  /* жирный шрифт метки */
+                cursor: pointer;  /* курсор на метке имеет вид руки */
+            }
+            .more ul {
+                list-style: none;
+                margin: 1em;
+                padding: 0;
+            }
+            .more summary:hover {
+                color:#ff3200;  /* изменение цвета метки при наведении */
+            }
+        </style>
+    </head>
+    <body>
+        <p align="center>">
+        <form method="POST" id="form">
+            {% csrf_token %}
+            <input type="hidden" value="{{s_product}}" name="product" form="form">
+            <input type="date" name="min_date" form="form" required>
+            <input type="date" name="max_date" form="form" required>
+            <input type="submit" value="Поиск">
+        </form>
+        </p>
+    {% if indic == 0 %}
+        <p align="center">
+        Продукт - {{name.name}}
+        <br/>
+        Статистика с {{min_date}} по {{max_date}}
+        </p>
+        <canvas id="myChart_1" width="100" height="10"></canvas>
+        Куплено всего:{{all}} {{name.edizm.edizm}}
+        <script>
+            var speedCanvas = document.getElementById("myChart_1");
+            Chart.defaults.global.defaultFontFamily = "Lato";
+            Chart.defaults.global.defaultFontSize = 18;
+            var speedData = {
+              labels: {{diapazon}},
+              datasets: [{
+                label: "Закупка {{name.name}} ({{name.edizm.edizm}})",
+                data: {{data}},
+              }]
+            };
+            var chartOptions = {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  boxWidth: 80,
+                  fontColor: 'black'
+                }
+              }
+            };
+            var lineChart = new Chart(speedCanvas, {
+              type: 'line',
+              data: speedData,
+              options: chartOptions
+            });
+        </script>
+        <div class="more">
+            <details>
+            <summary>Подробнее</summary>
+            <ul>
+                {% for product in products %}
+                    <li>{{product.date}}: {{product.fact_kol}}/{{product.kolvo}}</li>
+                {% endfor %}
+            </ul>
+            </details>
+        </div>
+    {% endif %}
+    <a href="/accounts/profile/info/products">Назад</a>
+    </body>
+</html>

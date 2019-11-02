@@ -1,0 +1,89 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Выборка накладных</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js"></script>
+        <style>
+            .more details + details {
+                    margin-top: 1em;
+                }
+            .more summary {
+                font-weight: 700;  /* жирный шрифт метки */
+                cursor: pointer;  /* курсор на метке имеет вид руки */
+            }
+            .more ul {
+                list-style: none;
+                margin: 1em;
+                padding: 0;
+            }
+            .more summary:hover {
+                color:#ff3200;  /* изменение цвета метки при наведении */
+            }
+        </style>
+    </head>
+    <body>
+        {% if indic == 0 %}
+            {% if e == 1 %}
+                 <script type="text/javascript">alert("Накладных не найдено!")</script>
+            {% endif %}
+            <p align="center>">
+            <form method="POST" id="form">
+                {% csrf_token %}
+                <p><b>Номер накладной:</b><br></p>
+                <input type="number" name="nak_id" form="form">
+                <p><b>Или дата:</b><br></p>
+                <input type="date" name="date" form="form">
+                <input type="submit" value="Поиск">
+            </p>
+            </form>
+        {% else %}
+            <canvas id="myChart" width="100" height="10"></canvas>
+            <script>
+                var popCanvas = document.getElementById("myChart").getContext("2d");
+                var barChart = new Chart(popCanvas, {
+                  type: 'bar',
+                  data: {
+                    labels: ["Всего", "Куплено", "Не купленно"],
+                    datasets: [{
+                      label: 'Накладная №{{nak_id}} от {{date}}',
+                      data: [{{all}}, {{vip}}, {{nevip}}],
+                      backgroundColor: [
+                        'rgba(14, 0, 217, 1)',
+                        'rgba(0, 217, 29, 1)',
+                        'rgba(255, 3, 36, 1)'
+                      ]
+                    }]
+                  }
+                });
+            </script>
+            <br/>
+            Всего продуктов: {{all}}
+            <br/>
+            Купленно: {{vip}}
+            <br/>
+            Не купленно: {{nevip}}
+            <br/>
+            <b>Купленно на сумму: {{summ}}</b>
+            <br/>
+            Статус накладной: {{status}}
+            <br/>
+            <br/>
+            <br/>
+            <div class="more">
+                <details>
+                <summary>Список товаров</summary>
+                <ul>
+                    {% for product in products %}
+                    {% if product.purchased_kol == 0.0 %}
+                        <li><font color="red">{{product.name.name}} - {{product.kolvo}} На сумму:{{product.summ}}</font></li>
+                    {% else %}
+                        <li><font color="green">{{product.name.name}} - {{product.fact_kol}}</font></li>
+                    {% endif %}
+                    {% endfor %}
+                </ul>
+                </details>
+        {% endif %}
+    </body>
+</html>

@@ -1,0 +1,47 @@
+{% include "profile.html" %}
+{% load staticfiles %}
+{% load custom_templates %}
+<html>
+    <head>
+    <title>Товары на заготовку</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    <script type="text/javascript">
+        function myFunction(barcod) {
+            var kolvo = prompt("Кол-во штрих-кодов:", "1");
+            var http = new XMLHttpRequest();
+            var url = "/accounts/profile/printing_barcodes/";
+            http.open("POST", url, true);
+            http.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+            if (kolvo != null || kolvo != "") {
+                var params = 'barcod=' +barcod+'&kol='+kolvo;
+                http.send(params);
+          }
+        }
+    </script>
+    </head>
+    <body>
+        {% if indic == 1 %}
+        <h3>{{product.name.name}}</h3>
+        <br/>
+        Требуется : {{product.tkolvo}} {{product.name.edizm.edizm}}
+        <p>Для приготовления потребуется:</p>
+        </ul>
+        {% for i in range %}
+            <li>{{ingrs|index:i}} - {{needs|index:i}}</li>
+        {% endfor %}
+        <br/>
+        <form method="POST">
+            {% csrf_token %}
+            <table>
+                {{form}}
+            </table>
+            <input type="submit" value="Ok" >
+        </form>
+        {% else %}
+        <ul>
+            <li>{{product.name.name}}</li>
+            <li>Заготовлено: {{ product.pkolvo }} </li>
+        </ul>
+        <button onclick="myFunction('{{code}}')">Печатать</button>
+        {% endif %}
+        <a href="/accounts/profile/zagot/list">К списку</a>

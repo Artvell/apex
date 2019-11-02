@@ -1,0 +1,17 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Принять деньги</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <form method="POST">
+            {% csrf_token %}
+        <table>
+            {{ form }}
+        </table>
+        <input type="submit" value="Принять" >
+        </form>
+    </body>
+</html>

@@ -11,6 +11,11 @@ class NaklTable(tables.Table):
         model=Purchase
         template_name = 'django_tables2/bootstrap.html'
 
+class NaklTable2(tables.Table):
+    class Meta:
+        model=Nakl_for_zagot
+        template_name = 'django_tables2/bootstrap.html'
+
 class ZakupTable(tables.Table):
     nak_id=tables.Column()
     name=tables.Column()
@@ -24,9 +29,9 @@ class ZakupTable(tables.Table):
         template_name = 'django_tables2/bootstrap.html'
 
 class ZagotTable(tables.Table):
-    nak_id=tables.Column()
+    id=tables.Column()
     name=tables.Column()
     tkolvo=tables.Column()
     class Meta:
-        model = Stock
+        model = Nakl_for_zagot
         template_name = 'django_tables2/bootstrap.html'

@@ -1,0 +1,32 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Закупка товара</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <p align="center>">
+        {% if indic == 1 %}
+        <b>Такого товара нет в базе! Попробуйте еще раз</b>
+        {% endif %}
+        <form method="POST" id="form">
+            {% csrf_token %}
+            <b>№ накладной</b>
+            <input type="number" value="{{nak_id}}" name="nak_id" form="form" readonly>
+            <br/>
+            <b>Продукт</b>
+            <input type="text" list="products" name="product" form="form" autocomplete="off">
+            <datalist id="products">
+            {% for product in products %}
+                <option>{{product.name}}</option>
+            {% endfor %}
+            </datalist>
+            <br/>
+            <b>Требуемое кол-во</b>
+            <input type="number" step="0.1" name="kolvo" form="form">
+            <input type="submit" value="Добавить">
+        </p>
+        </form>
+    </body>
+</html>

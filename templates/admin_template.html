@@ -1,0 +1,24 @@
+<html>
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <title>Изменить {{title}}| Административный сайт Django</title>
+    </head>
+    </body>
+    <a href="../delete/?id={{id}}">Удалить</a>
+    <br/>
+    <br/>
+    <a href="..">К списку</a>
+        {% if indic == 1 %}
+            <form method="POST" action="?k={{new_k}}">
+        {% else %}
+            <form method="POST" action="?id={{p_id}}&k={{new_k}}">
+        {% endif %}
+            {% csrf_token %}
+        <table>
+            {{ form }}
+        </table>
+        <input type="submit" value="Добавить" >
+        {% for ingr in ingredients %}
+            <p><a href="../delete/?pid={{p_id}}&id={{ingr.id}},"><img src="https://emojio.ru/images/apple-b/274c.png" width="20" height="20" alt="Удалить"></a></p>
+        {% endfor %}

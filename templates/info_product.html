@@ -1,0 +1,25 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Выборка накладных</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        {% if e == 1 %}
+             <script type="text/javascript">alert("Продуктов не найдено не найдено!")</script>
+        {% endif %}
+        <p align="center>">
+        <form method="POST" id="form">
+            {% csrf_token %}
+            <input type="text" list="products" name="product" form="form" autocomplete="off">
+            <datalist id="products">
+            {% for product in products %}
+                <option>{{product.name}}</option>
+            {% endfor %}
+            </datalist>
+            <input type="submit" value="Поиск">
+        </p>
+        </form>
+    </body>
+</html>

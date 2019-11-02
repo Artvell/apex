@@ -1,0 +1,72 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Закупка товара</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <script type="text/javascript">
+        function display(name)
+            {
+           document.getElementById(name).style.display='block';
+            }
+       </script>
+    </head>
+    <body>
+    <p align="center">
+        Сортировать по: <a href="./buy_products?sort=salers">По продавцам</a>  <a href="./buy_products?sort=category">По категориям</a>  <a href="./buy_products">Без сортировки</a>
+    </p>
+    <br/>
+        <a href="./buy_products/ordered_products?n={{nak_id}}">Заказанные продукты</a>
+    <br/>
+    {% if indic == 1 %}
+        {% for saler,prod in sorted_products.items %}
+        <br/>
+        <div id="{{saler}}" style="display:none">
+        <b><i><a href="/accounts/profile/sorted?s={{saler}}&n={{nak_id}}">{{saler}}</i></b>
+        </div>
+        <ul>
+            {% for product in products %}
+            {% if product.name.name in prod %}
+                <script type="text/javascript">display("{{saler}}")</script>
+                {% if product.purchased_kol == 0.0 and not product.is_ordered %}
+                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
+                {% elif product.purchased_kol > 0.0 and not product.is_ordered %}
+                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
+                {% endif %}
+            {% endif %}
+            {% endfor %}
+        </ul>
+        {% endfor %}
+        <br/>
+    {% elif indic == 0 %}
+        <ul>
+        {% for product in products %}
+                {% if product.purchased_kol == 0.0 and not product.is_ordered %}
+                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
+                {% elif product.purchased_kol > 0.0 and not product.is_ordered %}
+                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
+                {% endif %}
+        {% endfor %}
+        </ul>
+    {% elif indic == 2 %}
+        {% for category,prod in sorted_products.items %}
+            <b><i><a href="/accounts/profile/sorted?c={{category}}&n={{nak_id}}">{{category}}</i></b>
+            {% for product in prod %}
+            <ul>
+                {% if product.purchased_kol == 0.0 and not product.is_ordered %}
+                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
+                {% elif product.purchased_kol > 0.0 and not product.is_ordered %}
+                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
+                {% endif %}
+            </ul>
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+        <a href="/accounts/profile/buy_products/add_product">Добавить товар в накладную</a>
+        <br/>
+        <a href="./returned/zakup">Возврат</a>
+        <br/>
+        <a href="../profile">Назад</a>
+    </body>
+</html>

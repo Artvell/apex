@@ -1,0 +1,107 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+<head>
+    <script type='text/javascript'>
+        function addFields(){
+            var container = document.getElementById("container");
+            var elements = document.querySelectorAll('.barcode');
+            var ind=elements.length;
+            var i=elements[ind-1];
+            if (typeof i == "undefined") {var j=0;}
+            else {var j=parseInt(i.id)+1;}
+            container.appendChild(document.createElement("br"));
+            container.appendChild(document.createTextNode("Штрих-код: "));
+            var input = document.createElement("input");
+            input.type = "text";
+            input.name = "name";
+            input.className = "barcode";
+            input.id=j;
+            container.appendChild(input);
+            container.appendChild(document.createElement("br"));
+            var d=document.createElement("div");
+            d.id="info"+j;
+            container.appendChild(d);
+            container.appendChild(document.createTextNode("Кол-во: "));
+            var input2=document.createElement("input");
+            input2.type = "text";
+            input2.name = "kol";
+            container.appendChild(input2);
+            container.appendChild(document.createElement("br"));
+
+        }
+    </script>
+
+    <script type="text/javascript">
+        function send_form(){
+            form=document.getElementById('container')
+            form.action="/accounts/profile/spis/"
+            form.submit()
+        }
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+
+</head>
+<body>
+    {% if indic == 1 %}
+    <br/>
+    Заготовщику {{name}} нужно выдать:
+    <ul>
+        {% for ing in ingr %}
+        <li>{{ing|index:0}} - {{ing|index:1}}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <form id="container" method="POST" target="_blank">
+        {% csrf_token %}
+        <br/>
+        {% if indic == 1 %}
+        <input type="hidden" name="zagot_id" value="{{nak_id}}" form="container">
+        {% endif %}
+        {{form}}
+    </form>
+    <a href="#" id="filldetails" onclick="addFields()">Добавить поля</a>
+    <br/><br/><br/>
+    <div id="eeee"></div>
+    {% if indic == 1 %}
+        <button onclick="send_form()">Отправить</button>
+    {% else %}
+        <button onclick="document.getElementById('container').submit();">Отправить</button>
+    {% endif %}
+
+    <script>
+        $(function(){ // это краткий запись $(document).ready
+            $(document).on('blur', '.barcode', function() {
+                clickId = $(this).attr('id');
+                value=$(this).val();
+                var tag="#"+"info"+clickId;
+                vToken="token"
+                $.ajax({
+                    url: '/about_product/',
+                    type: 'POST',
+                    headers: {
+                        'Accept':'application/json',
+                        'Authorization': 'Bearer ' + vToken
+                    },
+                    data: {clickId:value},
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                    success: function(data){
+                        if(data){
+                            tag="#"+"info"+clickId;
+                            b=document.createElement("p")
+                            $(tag).append(b)
+                            $(tag).text(data["clickId"]);
+                            if (data['f']==1){
+                                $(tag).css('color','red')}
+                            else {
+                                $(tag).css('color','green')}
+                            $(tag).append(b)
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Некупленное</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+    <br/>
+    Некупленно на сумму: {{summ}}
+    <br/>
+        <ul>
+        {% for u in unrealized %}
+            <p>
+                <li>{{u.name.name}} : {{u.kolvo}} {{u.name.edizm.edizm}} Цена: {{u.last_cost}}</li>
+            </p>
+        {% endfor %}
+        </ul>
+    </body>
+</html>

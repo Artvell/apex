@@ -1,0 +1,37 @@
+{% include "profile.html" %}
+{% load staticfiles %}
+
+<html>
+    <head>
+        <title>Возвращенные продукты</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+    {% if indic == 3 %}
+        От закупщика:
+        <ul>
+            {% for product in products %}
+            <li><a href="../zakup/get_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a></li>
+            {% endfor %}
+        </ul>
+        <br/><br/>
+        От заготовщика:
+        <ul>
+            {% for pr in prod %}
+            <li><a href="../zagot/get_product?n={{ pr.nak_id }}&id={{ pr.id }}" style="color: red">{{pr.name}}</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <ul>
+        {% for product in products %}
+        {% if indic == 1 %}
+            <li><a href="../buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a></li>
+        {% elif indic == 2 %}
+            <li><a href="../product?n={{product.nak_id}}&id={{product.id}}" style="color:red">{{product.name.name}}</a></li>
+        {% endif %}
+        {% endfor %}
+        </ul>
+    {% endif %}
+    </body>
+</html>

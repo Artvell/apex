@@ -1,0 +1,44 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Закупка</title>
+        <meta charset="utf-8">
+        <style>
+            table {
+                /*width: 300px; /* Ширина таблицы */
+                border: 1px solid black; /* Рамка вокруг таблицы */
+                margin: auto; /* Выравниваем таблицу по центру окна  */
+                border-collapse: collapse;
+                }
+            td {
+                text-align: center; /* Выравниваем текст по центру ячейки */
+                }
+        </style>
+    </head>
+    <body>
+        {% if e == 1 %}
+            <script type="text/javascript">alert("Введите число!")</script>
+        {% endif %}
+        <form method="POST" id="form">
+            {% csrf_token %}
+        <table border="1px">
+        <caption><b><i>Ингридиенты для заготовки по накладной №{{nak_id}}</i></b></caption>
+        <br/>
+        <tr>
+            <th>Продукт</th>
+            <th>Списанное кол-во</th>
+            <th>Принятое кол-во</th>
+        </tr>
+        {% for p in products %}
+        <tr>
+            <td style="width: 300px;">{{p.product}}</td>
+            <td style="width: 150px;">{{p.kol}}</td>
+            <td style="width: 100px;"><input type="text" value="{{p.kol}}" form="form" name="kolvo" required="True"></td>
+        </tr>
+        {% endfor %}
+        </table>
+        <br/>
+        <center><input type="submit" value="Принять"></center>
+        </form>
+    </body>
+</html>

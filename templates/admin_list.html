@@ -1,0 +1,32 @@
+<html>
+<!DOCTYPE html>
+    <head>
+        <meta charset="utf-8">
+        <title>{{title}} | Административный сайт Django</title>
+    </head>
+    </body>
+    <a href="../..">Назад</a>
+    </br>
+    </br>
+    {% if f == 1 %}
+    <a href="../ingredients/add/?k=1">Добавить</a>
+    <ul>
+        {% for ingr in ingrs %}
+        <li><a href="./edit/?id={{ingr.product.id}}">{{ingr.product.name}}<a></li>
+        {% endfor %}
+    </ul>
+    {% elif f == 2 %}
+        <a href="..//add/?k=1">Добавить</a>
+        <ul>
+        {% for zakup in zakups %}
+        <li><a href="./edit/?id={{zakup.user.id}}">{{zakup.user.username}}<a></li>
+        {% endfor %}
+        </ul>
+    {% elif f == 3 %}
+        <a href="../salers/add/?k=1">Добавить</a>
+        <ul>
+        {% for postavsh in postavhiki %}
+        <li><a href="./edit/?id={{postavsh.id}}">{{postavsh.name}}<a></li>
+        {% endfor %}
+        </ul>
+    {% endif %}

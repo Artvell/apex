@@ -1,0 +1,20 @@
+% include "profile.html" %}
+{% load staticfiles %}
+<html>
+    <head>
+    <title>Товары на заготовку</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <ul>
+        {% for product,status in products.items %}
+            {% if product.is_maked == True %}
+            <li><a href="/accounts/profile/product?n={{product.nak_id}}&id={{product.id}}" style="color:green">{{product.name.name}}</a></li>
+            {% else %}
+            <li><a href="/accounts/profile/product?n={{product.nak_id}}&id={{product.id}}" style="color:red">{{product.name.name}}.|{{status}}</a></li>
+            {% endif %}
+        {% endfor %}
+        </ul>
+    </body>
+    <a href="/accounts/profile/returned/zagot">Возврат</a>
+</html>

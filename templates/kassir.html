@@ -1,1 +1,62 @@
 {% include "profile.html" %}
+{% load render_table from django_tables2 %}
+{% load staticfiles %}
+
+<html>
+    <head>
+        <title>Бухгалтерия</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+        <script type='text/javascript'>
+            function hide(){
+                if (document.getElementById("table").style.display=="none") {
+                    document.getElementById("table").style.display="block";
+                    document.getElementById("hide_button").innerHTML ="Свернуть";
+                }
+                else {
+                    document.getElementById("table").style.display="none";
+                    document.getElementById("hide_button").innerHTML ="Развернуть";
+                }
+            }
+        </script>
+        <style type="text/css">
+        #table {
+            display: none;
+        }
+        #balans {
+            border: 1px solid black; /* Параметры границы */
+        }
+        </style>
+    </head>
+    <body>
+    <!--<button id="hide_button" onclick="hide()">Развернуть</button>-->
+    <br/>
+    <div id="table" display="none">
+    </div>
+    <div>
+        <p>Всего накладных: {{ all }}</p>
+        <p>Принято: {{ accepted }}</p>
+        <p>Не принято: {{ other }}</p>
+        <!--<p>Выдано денег всего: {{ summ }}</p>-->
+        <p>Выдано денег закупщикам: {{ money }}</p>
+        <p>Выдано денег остальным:<br/>
+            <ul>
+            {% for types,kolvo in money2.items %}
+            <li>{{types}}: {{kolvo}}</li>
+            {% endfor %}
+            </ul>
+        </p>
+        <p>Закрыто денег закупщиков: {{ closed }}</p>
+    <div id="balans">
+        <p>Баланс:</p>
+        <ul>
+            {% for b in balans %}
+            <li>{{b.types.types}}: {{b.kolvo}}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <br/>
+    <a href="choose">Принять накладную</a>
+    <a href="select_receiver">Выдать деньги</a>
+    <a href="take_money">Принять деньги</a>
+    <a href="converter">Конвертация</a>

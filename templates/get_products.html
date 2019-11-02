@@ -1,4 +1,4 @@
-{% include "naklad_table.html" %}
+{% include "profile.html" %}
 <html>
     <head>
         <title>Принятие товара</title>
@@ -6,12 +6,34 @@
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
     </head>
     <body>
-        <p align="center"><img src="/media/{{link}}"></p>
-        <p align="center">{{product}}<p>
-        <form method="POST">
-            {% csrf_token %}
-        <table>
-            {{ form }}
-        </table>
-        <input type="submit" value="Следующий" >
-    </form>
+            {% if indic == 1 %}
+            <ul>
+            {% for product in products %}
+                {% if product.fact_kol != product.purchased_kol %}
+                    <li><a href="../zakup/get_product?n={{ product.nak_id }}&id={{ product.id }}">{{product.name}}</a></li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+            <br/><br/>
+            <a href="../returned/sklad">Возврат</a>
+            <br/><br/>
+            <a href="/accounts/profile/zakup/reset">Сменить накладную</a>
+            {% elif indic == 0 %}
+                <form method="POST" action="../zagot/get_barcode">
+                    {% csrf_token %}
+                <table>
+                    {{ form }}
+                </table>
+                <input type="submit" value="Ok" >
+                <br/><br/>
+                <a href="../returned/sklad">Возврат</a>
+                <br/><br/>
+                <a href="/accounts/profile/zagot/reset">Сменить накладную</a>
+            {% endif %}
+            <br/>
+            {% if al == 1 %}
+            <script type='text/javascript'>alert("Ничего не найдено")</script>
+            {% endif %}
+
+    </body>
+</html>

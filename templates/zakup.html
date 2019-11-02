@@ -7,11 +7,36 @@
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
     </head>
     <body>
-        {% render_table table %}
-        <form method="POST" action="buy_products" target="_blank">
+        {% if indic == 1 %}
+        <center><b>Есть непринятая накладная!</b></center>
+        <center><a href="zakup/accept?n={{id}}">Принять</a></center>
+        {% else %}
+        <center><b>Все накладные приняты</b></center>
+        {% endif %}
+        <br/><br/>
+        Выдано всего: {{all}}<br/>
+        Баланс: {{balans}}<br/>
+        Долг: {{debt}}<br/>
+        Примерная стоимость накладной:{{cost}}<br/>
+        <form method="POST" action="buy_products">
             {% csrf_token %}
         <table>
             {{ form }}
         </table>
-        <input type="submit" value="Ok" >
+        <input type="submit" name="button" value="Выбрать">
+        <br/>
+        <a href="./returned/zakup">Возврат</a>
+        <br/>
+        <br/>
+        <a href="/accounts/profile/info">Инфо</a>
+        <br/>
+        <p>
+            Невыполненные накладные:
+            <br/>
+            {% for n in unrealized %}
+                <a href="./unrealized?n={{n.nak_id}}" style="color: red">№: {{n.nak_id}} Дата:{{n.date}}</a>
+                <br/>
+            {% endfor %}
+        </p>
+        <br/>
     </form>

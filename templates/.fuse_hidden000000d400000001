@@ -1,0 +1,32 @@
+{% include "profile.html" %}
+{% load render_table from django_tables2 %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Закупка товара</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+    {% if indic == 1 %}
+    {% for i in range %}
+    </br>
+    Продукт: <b>{{ products|index:i }}<b>
+    <br/>
+    Нужно закупить: {{kol|index:i}}
+    Последняя цена: {{ last_cost|index:i }}
+    {{ ids|index:i }}
+
+        <form method="POST" id="form">
+            {% csrf_token %}
+        <table>
+            {{ forms|index:i }}
+        </table>
+            <input type="submit" form="form" name="{{ ids|index:i }}" value="Отправить" >
+    {% endfor %}
+        </form>
+    {% else %}
+        <h3><center>Нет заявок на закупку</center></h3>
+    {% endif %}
+    </body>
+</html>

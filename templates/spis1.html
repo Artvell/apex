@@ -1,1 +1,11 @@
-{{text}}
+{% if indic == 0 %}
+    {{ text }}
+{% else %}
+    <ul>
+        {% for product,error in text.items %}
+        <li>{{product}} - {{error}}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+<a href="../spis">Назад</a>
+<a href="../">Кабинет</a>

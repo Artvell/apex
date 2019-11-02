@@ -1,0 +1,18 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <title>Новый продавец</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <form method="POST" id="form">
+            {% csrf_token %}
+            <table>
+                {{ form }}
+            </table>
+            <input type="submit" form="form" value="Отправить" > 
+        </form>
+    </body>
+</html>
