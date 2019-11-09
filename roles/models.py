@@ -40,14 +40,14 @@ class Consuption(models.Model):
 class DopMoney(models.Model):
     objects=models.Manager()
     nak_id = models.IntegerField(verbose_name="Номер накладной")
-    dop_type = models.ForeignKey('DopTypes', models.DO_NOTHING)
+    dop_type = models.ForeignKey('DopTypes', models.DO_NOTHING,verbose_name="Тип расхода")
     purchaser = models.ForeignKey(User,limit_choices_to={"roles__role":3},on_delete=models.PROTECT, blank=True, null=True,verbose_name="Закупщик")
     money = models.IntegerField(verbose_name = "Потрачено")
 
     class Meta:
         db_table = 'roles_dop_money'
-        verbose_name=""
-        verbose_name_plural=""
+        verbose_name="Дополнительные расходы"
+        verbose_name_plural="Дополнительные расходы"
 
 
 class DopTypes(models.Model):
@@ -55,7 +55,8 @@ class DopTypes(models.Model):
     name = models.CharField(max_length=50,verbose_name = "Тип расхода")
     min_summ = models.IntegerField(verbose_name = "Минимальная сумма")
     max_summ = models.IntegerField(verbose_name = "Максимальная сумма")
-
+    def __str__(self):
+        return self.name
     class Meta:
         db_table = 'roles_dop_types'
         verbose_name="Тип доп.расходов"

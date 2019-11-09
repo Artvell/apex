@@ -203,11 +203,15 @@ def profile(request):
         money=0.0
         money2={t.types:0.0 for t in Types_of_money.objects.all()}
         closed=0.0
+        print(money2)
         for nak in nakl_money:
             money+=nak.kolvo
+        print(money2)
         for n in nakl_money_other:
+            print(money2)
+            print(money2[n.types.types],type(money2[n.types.types]))
             money2[n.types.types]+=n.kolvo
-            money2[n.types.types]=format(money2[n.types.types],".3f")
+            #money2[n.types.types]=format(money2[n.types.types],".3f")
         for p in nakl_closed:
             closed+=p.summ
         money=format(money,".3f")
@@ -410,7 +414,10 @@ def accept_naklad(request):
             print("PPP=",len(products))
             for p in products:
                 cost+=(p.fact_kol*p.new_cost)
-                print("cost=",cost,p.fact_kol,p.new_cost,p.fact_kol*p.new_cost)
+                #print("cost=",cost,p.fact_kol,p.new_cost,p.fact_kol*p.new_cost)
+            dop_money=DopMoney.objects.filter(nak_id=nak_id)
+            for d in dop_money:
+                cost+=d.money
             cost=round(cost,3)
             return render(request,"kassir_accept_nakl.html",{"cost":cost,"nak_id":nak_id})
     else:
@@ -428,6 +435,9 @@ def accepted_naklad(request):
             try:
                 b=Buyer_Balans.objects.get(buyer=n.purchase)
                 b.debt-=(n.fact_kol*n.new_cost)
+                dop_money=DopMoney.objects.filter(Q(nak_id=nak_id)&Q(purchaser=n.purchase))
+                for d in dop_money:
+                    b.debt-=d.money
                 b.debt=round(b.debt,3)
                 b.save()
             except ObjectDoesNotExist:
@@ -1069,21 +1079,27 @@ def buy_products(request):
 
 
 @login_required
-def add_dopMoney_for_purchase(request):
+def add_dop_money_for_purchase(request):
     j=request.user.roles.role
     if j==3:
         if request.method!="POST":
-            pass
+            types=DopTypes.objects.all()
+            nak_id=request.GET.get("n")
+            return render(request,"dop_types.html",{"types":types,"n":nak_id})
         else:
-            d_type=request.POST.get("type")
-            money=request.POST.get("money")
-            money=round(float(money),3)
-            nak_id=int(request.GET.get(n))
-            try:
-                DopMoney(nak_id=nak_id,dop_type=DopTypes.objects.get(id=d_type),purchase=request.user).save()
-            except Exception as e:
-                print(e)
-            return redirect("../")
+            d_type=int(request.POST.get("type"))
+            money_type=DopTypes.objects.get(id=d_type)
+            money=float(request.POST.get("summ"))
+            if (money<=money_type.max_summ) and (money>=money_type.min_summ):
+                money=round(float(money),3)
+                nak_id=int(request.GET.get("n"))
+                try:
+                    DopMoney(nak_id=nak_id,dop_type=money_type,purchaser=request.user,money=money).save()
+                except Exception as e:
+                    print(e)
+                return redirect("../")
+            else:
+                return render(request,"dop_types.html",{"indic":1,"min":money_type.min_summ,"max":money_type.max_summ,"types":DopTypes.objects.all()})
 
 
 

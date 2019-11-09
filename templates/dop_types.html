@@ -1,0 +1,26 @@
+{% include "profile.html" %}
+
+<html>
+    <head>
+        <title>Доп.расходы</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        {% if indic == 1%}
+            <p align="center" style="color:red">Недопустимая сумма для этого типа расходов.<br/>Минимальная сумма:{{min}}<br/>Максимальная сумма:{{max}}</p>
+        {% endif %}
+        <form name="form" method="POST">
+            {% csrf_token %}
+            <label for="type">Выберите тип расхода</label>
+            <p><select name="type">
+                {% for type in types %}
+                    <option value="{{type.id}}">{{type.name}}</option>
+                {% endfor %}
+            </select></p>
+            <label for="summ">Введите сумму</label>
+            <p><input type="number" name="summ" min="0" step="0.1"></p>
+            <p><input type="submit" value="Отправить"></p>
+        </form>
+    </body>
+</html>

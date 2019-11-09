@@ -66,7 +66,7 @@ class Dop_types_Admin(admin.ModelAdmin):
     list_display=("name","min_summ","max_summ")
 
 class Dop_money_Admin(admin.ModelAdmin):
-    list_display=("nak_id","dop_type","money")
+    list_display=("nak_id","dop_type","money","purchaser")
 
 class SpisAdmin(admin.ModelAdmin):
     list_display=("nak_id","product","receiver","kol")
@@ -144,8 +144,8 @@ admin_site.register(Postavsh,PostavshAdmin)
 admin_site.register(Purchase,PurchaseAdmin)
 #admin_site.register(Money,MoneyAdmin)
 admin_site.register(Nakl_for_zagot,NaklAdmin)
-#admin_site.register(Dop_types,Dop_types_Admin)
-#admin_site.register(Dop_money,Dop_money_Admin)
+admin_site.register(DopTypes,Dop_types_Admin)
+admin_site.register(DopMoney,Dop_money_Admin)
 admin_site.register(Spis,SpisAdmin)
 admin_site.register(Receivers,RecAdmin)
 admin_site.register(Codes,CodesAdmin)
