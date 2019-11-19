@@ -50,32 +50,40 @@ def print_barcode(name,product,d1,d2,barcod): #печать чеков у заг
     #code.cut()
 
 def print_barcode_2(product,d,barcod): #печать чеков на складе (от закупщика)
-    ip=Printers.objects.get(id=1).ip_address
-    print("ip1=",ip)
-    code = Network(ip)
-    d=datetime.strftime(d,r"%d-%m-%Y")
     try:
-        product=translit(product,reversed=True)
-    except LanguageDetectionError:
-        product=product
-    code.set(align="right")
-    code.text(" \n")
-    code.text(" \n")
-    code.text(f"{product}\nGoden do: {d}\n")
-    code.barcode(barcod, 'EAN13',102, 2,align_ct=False)
-    code.text(" \n")
+        ip=Printers.objects.get(id=1).ip_address
+        print("ip1=",ip)
+        code = Network(ip)
+        d=datetime.strftime(d,r"%d-%m-%Y")
+        try:
+            product=translit(product,reversed=True)
+        except LanguageDetectionError:
+            product=product
+        code.set(align="right")
+        code.text(" \n")
+        code.text(" \n")
+        code.text(f"{product}\nGoden do: {d}\n")
+        code.barcode(barcod, 'EAN13',102, 2,align_ct=False)
+        code.text(" \n")
+    except Exception as e:
+        print(e)
     #code.cut()
 
 def trash(): # пустой чек для закупщика
-    code = Network("192.168.101.216")
-    code.set(align="right")
-    code.text(" \n")
-    code.text(" \n")
-    code.text(" \n")
-    code.text(" \n")
-    code.barcode("000000000000", 'EAN13',70, 2,align_ct=False)
-    code.text(" \n")
-    code.text(" \n")
+    print("here")
+    try:
+        ip=Printers.objects.get(id=1).ip_address
+        code = Network(ip)
+        code.set(align="right")
+        code.text(" \n")
+        code.text(" \n")
+        code.text(" \n")
+        code.text(" \n")
+        code.barcode("000000000000", 'EAN13',70, 2,align_ct=False)
+        code.text(" \n")
+        code.text(" \n")
+    except Exception as e:
+        print(e)
 
 def trash2(): # пустой чек для заготовщика
     code = Network("192.168.101.216")
@@ -585,7 +593,7 @@ def get_barcode(request):
         nak_id=request.session.get("_old_post_zagot").get("nak_id")
         print("!!!",int(barcode[:-9]),nak_id)
         try:
-            product=Harvester_Barcodes.objects.get(Q(barcode=barcode)&Q(nak_id=nak_id)&Q(is_maked=True)&Q(is_returned=False))
+            product=Harvester_Barcodes.objects.get(Q(barcode=barcode)&Q(nak_id=nak_id))
         except ObjectDoesNotExist:
             return redirect("/accounts/profile/zagot/get_products?al=1")
         return redirect(f"/accounts/profile/zagot/get_product?n={nak_id}&id={product.product_id}")
@@ -627,13 +635,19 @@ def get_product(request):
                     try:
                         print(")))))))))))))))))")
                         c=Codes.objects.get(shtrih=barcod)
+                        print("1",barcod)
                         c.kolvo+=fact_kol
+                        print(2)
                         c.save()
+                        print(3)
                     except ObjectDoesNotExist:
-                        print("((((((((((((")
+                        print("(((((((((((( ",e)
                         Codes(name=product.name,kolvo=fact_kol,shtrih=barcod).save()
+                        print("!@##$$@!@!@")
+                    print("####")
                     for i in range(shtr_kol):
                         print_barcode_2(product.name.name,srok,barcod)
+                    print(4)
                     trash()
                     if fact_kol<product.purchased_kol:
                         print("????????",product.name)
@@ -688,6 +702,7 @@ def get_product(request):
                 product.in_stock=True
                 product.is_returned=False
                 product.save()
+                barcod=Harvester_Barcodes.objects.get(Q(nak_id=nak_id)&Q(product_id=pid)).barcode
                 try:
                     c=Codes.objects.get(shtrih=barcod)
                     c.kolvo+=fact_kol
@@ -699,7 +714,7 @@ def get_product(request):
                     st.ostat+=fact_kol
                     st.save()
                 except ObjectDoesNotExist:
-                    Stock(name=product.name,ostat=round(float(request.session.get("_zakup_fact_kol")),3)).save()
+                    Stock(name=product.name,ostat=fact_kol).save()
                 return redirect("/accounts/profile/zagot/get_products")
 
         else:
@@ -907,12 +922,39 @@ def spis(request):
         form=SpisForm(rec)
         return render(request,"spisanie.html",{"job":job,"form":form})
 
-#@login_required
-#def query_to_remove_spis(request):
-#    j=request.user.roles.role
-#    if j==1:
-#        if request.method=="GET":
-#            nak_id=int(request.GET.get("n"))
+@login_required
+def query_to_remove_spis(request):
+    j=request.user.roles.role
+    if j==1:
+        if request.method!="POST":
+            nak_id=int(request.GET.get("n"))
+            products=Spis.objects.filter(nak_id=nak_id)
+            if (datetime.now()-products.first().date).seconds<=3600:
+                return render(request,"removed_spis.html",{"products":products,"nak_id":nak_id})
+            else:
+                return render(request,"removed_spis.html",{"indic":1})
+        else:
+            nak_id=int(request.POST.get("nak_id"))
+            products=Spis.objects.filter(nak_id=nak_id)
+            for p in products:
+                if User.objects.get(username=p.receiver.receiver).roles.role==4:
+                    harvester_p=Harvestar_Stock.objects.get(product__name=p.product)
+                    st=Stock.objects.get(product__name=p.product)
+                    if harvester_p.kol<p.kol:
+                        st.ostat+=harvester_p.kol
+                        harvester_p.kol=0.0
+                    else:
+                        st.ostat+=p.kolvo
+                        harvester_p.kol-=p.kol
+                    st.save()
+                    harvester_p.save()
+                else:
+                    st=Stock.objects.get(product__name=p.product)
+                    st+=p.kol
+                    st.save()
+            return redirect("/accounts/profile")
+
+
 
 @login_required
 def spis_zagot(request):
@@ -971,9 +1013,9 @@ def nakl_orders(request):
                     nak.append(n)
                     n_id.append(n.nak_id)
             if e=="1":
-                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"indic":1})
+                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"indic":1,"nak_id":naks.last().nak_id})
             else:
-                return render(request,"nakl_orders.html",{"naks":nak,"products":products})
+                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"nak_id":naks.last().nak_id})
         else:
             name=request.POST.get("product")
             try:

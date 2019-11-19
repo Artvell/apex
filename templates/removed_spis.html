@@ -1,0 +1,25 @@
+{% include "profile.html" %}
+<html>
+    <head>
+    <title>Отмена накладной</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        {% if indic == 1 %}
+        <p align="center" style="color:red">Время для отмены истекло!</p>
+        {% else %}
+        <p>Вы действительно хотите отменить накладную?</p>
+        <ul>
+            {% for product in products %}
+            <li>{{product.product}} - {{product.kol}}</li>
+            {% endfor %}
+        </ul>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="nak_id" value="{{nak_id}}">
+            <p align="center" style="color:red">Вы уверены, что хотите отменить эту накладную на списание?</p>
+            <p align="center"><input type="submit" value="Да">          <a href="/accounts/profile">Нет</a></p>
+        </form>
+        {% endif %}
+    </body>
+</html>

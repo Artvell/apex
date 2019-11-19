@@ -46,6 +46,7 @@ urlpatterns = [
     path('accounts/profile/spis/zagot/create_nakl/',views.spis_create_nakl),
     path('accounts/profile/nakl_order/',views.nakl_order),
     path('accounts/profile/nakl_orders/',views.nakl_orders),
+    path('accounts/profile/nakl_orders/remove/',views.query_to_remove_spis),
     path('accounts/profile/new_product/',views.append_product_for_saler),
     path('accounts/profile/new_saler',views.append_saler),
     path('accounts/profile/zakup/get_products',views.get_products),

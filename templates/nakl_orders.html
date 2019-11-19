@@ -22,6 +22,7 @@
             <input type="submit" value="Добавить">
             <br/>
     </form>
+    <p><a href="/accounts/profile/nakl_orders/remove?n={{nak_id}}">Отменить последнюю накладную</a></p>
         <ul>
         {% for nak in naks %}
             <li><a href="../nakl_order/?nak_id={{nak.nak_id}}">{{nak.nak_id}} ({{nak.date}})</a></li>

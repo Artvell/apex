@@ -18,7 +18,7 @@
         Баланс: {{balans}}<br/>
         Долг: {{debt}}<br/>
         Примерная стоимость накладной:{{cost}}<br/>
-        <form method="POST" action="buy_products">
+        <form method="POST" action="buy_products/">
             {% csrf_token %}
         <table>
             {{ form }}

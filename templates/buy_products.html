@@ -14,12 +14,12 @@
     </head>
     <body>
     <p align="center">
-        Сортировать по: <a href="./buy_products?sort=salers">По продавцам</a>  <a href="./buy_products?sort=category">По категориям</a>  <a href="./buy_products">Без сортировки</a>
+        Сортировать по: <a href="/accounts/profile/buy_products/?sort=salers">По продавцам</a>  <a href="/accounts/profile/buy_products/?sort=category">По категориям</a>  <a href="/accounts/profile/buy_products/">Без сортировки</a>
     </p>
     <br/>
-        <a href="./buy_products/ordered_products?n={{nak_id}}">Заказанные продукты</a>
+        <a href="/accounts/profile/buy_products/ordered_products?n={{nak_id}}">Заказанные продукты</a>
     <br/>
-    <p><a href="./buy_products/dop_types?n={{nak_id}}">Дополнительные расходы</a></p>
+    <p><a href="/accounts/profile/buy_products/dop_types?n={{nak_id}}">Дополнительные расходы</a></p>
     {% if indic == 1 %}
         {% for saler,prod in sorted_products.items %}
         <br/>
@@ -31,9 +31,9 @@
             {% if product.name.name in prod %}
                 <script type="text/javascript">display("{{saler}}")</script>
                 {% if product.purchased_kol == 0.0 and not product.is_ordered %}
-                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
+                    <li><a href="/accounts/profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
                 {% elif product.purchased_kol > 0.0 and not product.is_ordered %}
-                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
+                    <li><a href="/accounts/profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
                 {% endif %}
             {% endif %}
             {% endfor %}
@@ -44,9 +44,9 @@
         <ul>
         {% for product in products %}
                 {% if product.purchased_kol == 0.0 and not product.is_ordered %}
-                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
+                    <li><a href="/accounts/profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
                 {% elif product.purchased_kol > 0.0 and not product.is_ordered %}
-                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
+                    <li><a href="/accounts/profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
                 {% endif %}
         {% endfor %}
         </ul>
@@ -56,9 +56,9 @@
             {% for product in prod %}
             <ul>
                 {% if product.purchased_kol == 0.0 and not product.is_ordered %}
-                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
+                    <li><a href="/accounts/profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: red">{{product.name}}</a> {{product.last_cost}} сум</li>
                 {% elif product.purchased_kol > 0.0 and not product.is_ordered %}
-                    <li><a href="../profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
+                    <li><a href="/accounts/profile/buy_product?n={{ product.nak_id }}&id={{ product.id }}" style="color: green">{{product.name}}</a> {{product.last_cost}} сум</li>
                 {% endif %}
             </ul>
             {% endfor %}
@@ -68,6 +68,6 @@
         <br/>
         <a href="./returned/zakup">Возврат</a>
         <br/>
-        <a href="../profile">Назад</a>
+        <a href="/accounts/profile">Назад</a>
     </body>
 </html>
