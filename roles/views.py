@@ -63,7 +63,7 @@ def print_barcode_2(product,d,barcod): #печать чеков на склад�
         code.text(" \n")
         code.text(" \n")
         code.text(f"{product}\nGoden do: {d}\n")
-        code.barcode(barcod, 'EAN13',102, 2,align_ct=False)
+        code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
         code.text(" \n")
     except Exception as e:
         print(e)
@@ -77,9 +77,9 @@ def trash(): # пустой чек для закупщика
         code.set(align="right")
         code.text(" \n")
         code.text(" \n")
+        #code.text(" \n")
         code.text(" \n")
-        code.text(" \n")
-        code.barcode("000000000000", 'EAN13',70, 2,align_ct=False)
+        code.barcode("000000000000", 'EAN13',86, 2,align_ct=False)
         code.text(" \n")
         code.text(" \n")
     except Exception as e:
@@ -102,7 +102,8 @@ roles={
     4:"zagotov.html",
     5:"pizzamaker.html",
     6:"dostavka.html",
-    7:"pizzakassir.html"
+    7:"pizzakassir.html",
+    8:"admin.html"
 }
 
 # Create your views here.
@@ -138,6 +139,7 @@ def profile(request):
             for pur in purch:
                 cost+=round((float(pur.last_cost)*pur.kolvo),3)
             cost=round(cost,3)
+            print("#########",cost)
             all_money=Nakl_money_zakup.objects.filter(Q(name__username=request.user.username)&Q(types__types="Наличные"))
             money=0.0
             for m in all_money:
@@ -145,9 +147,9 @@ def profile(request):
             money=round(money,3)
             b=Buyer_Balans.objects.get(buyer__username=request.user.username)
             balans=round(b.balans,3)
-            not_accepted=Purchase.objects.filter(Q(is_accepted=False)&Q(purchased_kol__gt=0.0))
+            not_accepted=Purchase.objects.filter(Q(is_accepted=False)&Q(purchased_kol__gt=0.0)&Q(is_borrowed=False))
             debt=round(b.debt,3)
-            unrealized=Purchase.objects.filter(Q(is_accepted_zakup=True)&Q(purchased_kol=0.0))
+            unrealized=Purchase.objects.filter(Q(is_accepted_zakup=True)&Q(purchased_kol=0.0)&Q(is_borrowed=False))
             unrealized_uniq=[]
             unrealized_uniq_id=[]
             for u in unrealized:
@@ -417,7 +419,7 @@ def accept_naklad(request):
     if j==2:
         if request.method=="POST":
             nak_id=request.POST.get("nak_id")
-            products=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_accepted=False)&Q(is_delivered=True))
+            products=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_accepted=False)&Q(is_delivered=True)&Q(is_borrowed=False))
             cost=0.0
             print("PPP=",len(products))
             for p in products:
@@ -437,7 +439,7 @@ def accepted_naklad(request):
     job=Roles.choices[j-1][1]
     if j==2 and request.method=="GET":
         nak_id=request.GET.get("nak_id")
-        nakl=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_delivered=True))
+        nakl=Purchase.objects.filter(Q(nak_id=nak_id)&Q(is_delivered=True)&Q(is_borrowed=False))
         summ=0.0
         for n in nakl:
             try:
@@ -641,7 +643,6 @@ def get_product(request):
                         c.save()
                         print(3)
                     except ObjectDoesNotExist:
-                        print("(((((((((((( ",e)
                         Codes(name=product.name,kolvo=fact_kol,shtrih=barcod).save()
                         print("!@##$$@!@!@")
                     print("####")
@@ -1080,7 +1081,8 @@ def buy_products(request):
             request.session['_old_post'] = request.POST
             nak_id=request.POST.get("nak_id")
             products=Purchase.objects.filter(nak_id=nak_id).order_by("name")
-            return render(request,"buy_products.html",{"products":products,"indic":0,"nak_id":nak_id})
+            #return render(request,"buy_products.html",{"products":products,"indic":0,"nak_id":nak_id})
+            return redirect(f"/accounts/profile/buy_more_products?n={nak_id}")
         else:
             return redirect("/accounts/profile")
     else:
@@ -1115,7 +1117,8 @@ def buy_products(request):
                 #print("{}{}{}{}",sorted_products)
                 return render(request,"buy_products.html",{"sorted_products":sorted_products,"indic":2,"nak_id":nak_id})
             else:
-                return render(request,"buy_products.html",{"products":products,"indic":0,"nak_id":nak_id})
+                #return render(request,"buy_products.html",{"products":products,"indic":0,"nak_id":nak_id})
+                return redirect(f"/accounts/profile/buy_more_products?n={nak_id}")
         else:
             return redirect("/accounts/profile")
 
@@ -1269,63 +1272,90 @@ def buy_more_products(request):
         if request.method!="POST":
             nak_id=request.GET.get("n"," ")
             saler_id=request.GET.get("s"," ")
-            if nak_id==" " or saler_id==" ":
+            if nak_id==" ":
                 return redirect("/accounts/profile/")
             else:
-                nak_id,saler_id=int(nak_id),int(saler_id)
-                another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False))
-                name=Postavsh.objects.get(id=saler_id)
-                saler_other=Salers.objects.filter(Q(saler__name=name.name))
-                saler_products=[s.product for s in saler_other]
-                products=[an.name for an in another if an.name in saler_products]
-                costs=[an.last_cost for an in another if an.name in saler_products]
-                kolvo=[an.kolvo for an in another if an.name in saler_products]
-                ids=[an.id for an in another if an.name in saler_products]
-                srok=[an.min_srok for an in another if an.name in saler_products]
-                summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
-                all_summ=round(sum(summ),3)
-                costs=[str(c).replace(",",".") for c in costs]
-                kolvo=[str(c).replace(",",".") for c in kolvo]
-                summ=[str(c).replace(",",".") for c in summ]
-                return render(request,"buy_more_products.html",{"products":products,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+                if saler_id!=" ":
+                    nak_id,saler_id=int(nak_id),int(saler_id)
+                    another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False)&Q(is_borrowed=False))
+                    name=Postavsh.objects.get(id=saler_id)
+                    saler_other=Salers.objects.filter(Q(saler__name=name.name))
+                    saler_products=[s.product for s in saler_other]
+                    products=[an.name for an in another if an.name in saler_products]
+                    costs=[an.last_cost for an in another if an.name in saler_products]
+                    kolvo=[an.kolvo for an in another if an.name in saler_products]
+                    ids=[an.id for an in another if an.name in saler_products]
+                    srok=[datetime.strftime(an.min_srok,"%Y-%m-%d") for an in another if an.name in saler_products]
+                    summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
+                    all_summ=round(sum(summ),3)
+                    costs=[str(c).replace(",",".") for c in costs]
+                    kolvo=[str(c).replace(",",".") for c in kolvo]
+                    summ=[str(c).replace(",",".") for c in summ]
+                    return render(request,"buy_more_products.html",{"products":products,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+                else:
+                    nak_id = int(nak_id)
+                    another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False)&Q(is_borrowed=False))
+                    salers={p.name:[Salers.objects.filter(product=p.name)] for p in another}
+                    products=[an.name for an in another]
+                    costs=[an.last_cost for an in another]
+                    kolvo=[an.kolvo for an in another]
+                    ids=[an.id for an in another]
+                    pids=[an.name.id for an in another]
+                    srok=[datetime.strftime(an.min_srok,"%Y-%m-%d") for an in another]
+                    summ=[round(costs[i]*kolvo[i],3) for i in range(len(costs))]
+                    all_summ=round(sum(summ),3)
+                    costs=[str(c).replace(",",".") for c in costs]
+                    kolvo=[str(c).replace(",",".") for c in kolvo]
+                    summ=[str(c).replace(",",".") for c in summ]
+                    return render(request,"buy_more_products.html",{"ind":2,"pids":pids,"n":nak_id,"products":products,"salers":salers,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+
         else:
             print(request.POST)
-            f=True if "button_1" in request.POST else False
+            if "button_1" in request.POST:
+                f=1
+            elif "button_3" in request.POST:
+                f=3
+            else:
+                f=2
             check=dict(request.POST).get("check")
             products=dict(request.POST).get("products")
-            saler=request.POST.get("saler")
+            saler=dict(request.POST).get("saler")
             costs=dict(request.POST).get("costs")
             kolvo=dict(request.POST).get("kolvo")
             summ=dict(request.POST).get("summ")
-            date=dict(request.POST).get("date")
-            for i in range(len(products)):
+            check=check[1:]
+            #date=dict(request.POST).get("date")
+            for i in range(len(check)):
                 if check[i]=="1":
-                    print("!d!",date,type(date))
-                    if date[i]=="":
-                        continue
+                    prod=Purchase.objects.get(id=products[i])
+                    print(prod.name)
+                    #d=datetime.strptime(date[i],"%Y-%m-%d").date()
+                    cost=costs[i].replace(",",".")
+                    kol=kolvo[i].replace(",",".")
+                    summa=summ[i].replace(",",".")
+                    #prod.srok=d
+                    prod.purchased_kol=round(float(kol),3)
+                    prod.summ=round(float(summa),3)
+                    prod.new_cost=round(float(cost),3)
+                    saler_name=Postavsh.objects.get(name=saler[i])
+                    prod.saler=saler_name
+                    prod.purchase=request.user
+                    if f==2:
+                        prod.is_ordered=True
                     else:
-                        prod=Purchase.objects.get(id=products[i])
-                        d=datetime.strptime(date[i],"%Y-%m-%d").date()
-                        cost=costs[i].replace(",",".")
-                        kol=kolvo[i].replace(",",".")
-                        summa=summ[i].replace(",",".")
-                        prod.srok=d
-                        prod.purchased_kol=round(float(kol),3)
-                        prod.summ=round(float(summa),3)
-                        prod.new_cost=round(float(cost),3)
-                        saler_name=Postavsh.objects.get(name=saler)
-                        prod.saler=saler_name
-                        prod.purchase=request.user
-                        if not f:
-                            prod.is_ordered=True
-                        prod.save()
-                        if f:
-                            try:
-                                last_cost=LastCost.objects.get(product=prod.name)
-                                last_cost.cost=round(float(cost),3)
-                                last_cost.save()
-                            except ObjectDoesNotExist:
-                                LastCost(product=product.name,cost=round(float(cost),3)).save()
+                        if f==3:
+                            prod.is_borrowed=True
+                        elif f==1:
+                                b=Buyer_Balans.objects.get(buyer__username=request.user.username)
+                                b.balans-=round(float(summa),3)
+                                b.save()
+                        try:
+                            last_cost=LastCost.objects.get(product=prod.name)
+                            last_cost.cost=round(float(cost),3)
+                            last_cost.save()
+                        except ObjectDoesNotExist:
+                            LastCost(product=prod.name,cost=round(float(cost),3)).save()
+                    prod.save()
                 else:
                     continue
             return redirect("/accounts/profile/buy_products")
@@ -1524,7 +1554,7 @@ def append_product_for_saler(request):
                 else:
                     print("!!!")
                     continue
-            return redirect(f"../buy_product?n={n}&id={pid}")
+            return redirect(f"../buy_more_products?n={n}")
         else:
             form=Add_Product_for_saler(salers)
             return render(request,"new_product.html",{"form":form,"id":product.id,"n":n,"pid":pid})
@@ -1546,7 +1576,7 @@ def append_saler(request):
             postavsh=Postavsh(name=name,firm_name=firm_name,place=place,contact=phone)
             postavsh.save()
             Salers(product=product,last_cost=round(cost,3),saler=postavsh).save()
-            return redirect(f"./buy_product?n={n}&id={pid}")
+            return redirect("accounts/profile/buy_products")
         else:
             form=Add_Saler()
             return render(request,"new_saler.html",{"form":form})

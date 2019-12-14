@@ -310,6 +310,7 @@ class Purchase(models.Model):
     is_accepted_zakup = models.BooleanField(verbose_name="Принято закупщиком?",default=False)
     is_delivered = models.BooleanField(verbose_name="Куплен?",default=False)
     is_ordered=models.BooleanField(verbose_name="Заказан?",default=False)
+    is_borrowed=models.BooleanField(verbose_name="Взят в долг?",default=False)
     saler=models.ForeignKey(Postavsh,on_delete=models.PROTECT,verbose_name="Продавец",blank=True, null=True)
     purchase = models.ForeignKey(User,limit_choices_to={"roles__role":3},on_delete=models.PROTECT, blank=True, null=True,verbose_name="Закупщик")
     is_returned = models.BooleanField(verbose_name="Возвращен?",default=False)
@@ -352,7 +353,8 @@ class Roles(models.Model):
         (4,"Заготовщик"),
         (5,"Пиццемейкер"),
         (6,"Пиццедоставщик"),
-        (7,"Пиццекассир")
+        (7,"Пиццекассир"),
+        (8,"Администратор")
     ]
     objects=models.Manager()
     user = models.OneToOneField(User, on_delete=models.CASCADE,verbose_name="Работник")
