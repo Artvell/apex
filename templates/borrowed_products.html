@@ -1,9 +1,9 @@
 {% include "profile.html" %}
 {% load custom_templates %}
+<!DOCTYPE html>
 <html>
-    <head>
-        <title>Закупка</title>
-        <meta charset="utf-8">
+<head>
+    <meta charset="utf-8">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
         <style>
             table {
@@ -66,19 +66,10 @@
         </script>
     </head>
     <body>
-        <a href="/accounts/profile/list_of_debts">Долги</a>
-        <form method="POST" id="form">
+        <form method="POST" id="form" action="/accounts/profile/buy_more_products">
             {% csrf_token %}
         <table border="1px">
-        {% if ind == 2 %}
-            <p align="center">
-            Сортировать по: <a href="/accounts/profile/buy_products/?sort=salers">По продавцам</a>  <a href="/accounts/profile/buy_products/?sort=category">По категориям</a>  <a href="/accounts/profile/buy_products/">Без сортировки</a>
-            </p>
-        {% elif indic == 1 %}
-            <caption><center><b>Заказанные продукты</b></center><br/><br/></caption>
-        {% else %}
-            <caption><center><b>Другие товары у этого продавца</b></center><br/><br/></caption>
-        {% endif %}
+        <caption><center><b>Продукты в долг</b></center><br/><br/></caption>
             <tr>
                 <th>    </th>
                 <th>Продукт</th>
@@ -93,32 +84,11 @@
             <tr>
                 <td style="width: 100px;"><input type="hidden" name="check" value="0"><input id="f{{i}}" type="checkbox" name="check" form="form" value="0" onchange=flag({{i}})></td>
                 <td><select name="products" form="form"><option value="{{ids|index:i}}">{{products|index:i}}</option></select></td>
-                {% if ind == 1 %}
-                    <td><select name="saler" form="form">
-                    {% for sal in salers|index:i %}
-                        {% for s in sal %}
-                        <option value="{{s}}">{{s}}</option>
-                        {% endfor %}
-                    {% endfor %}
-                    </select></td>
-                {% elif ind == 2 %}
-                    <td><select name="saler" form="form">
-                    {% for product,sal in salers.items %}
-                    {% if product == products|index:i %}
-                        {% for ss in sal %}
-                        {% for s in ss %}
-                        <option value="{{s}}">{{s}}</option>
-                        {% endfor %}
-                        {% endfor %}
-                    {% endif %}
-                    {% endfor %}
-                    </select>
-                    <a href="new_product?id={{pids|index:i}}&n={{n}}"><img src="https://st3.depositphotos.com/2398103/17062/v/1600/depositphotos_170628774-stock-illustration-plus-sign-green-circle-icon.jpg" width="30" height="30" alt="Добавить продавца"></a>
+                <td><select name="saler" form="form" readonly>
+                    <option value="{{s|index:i}}">{{s|index:i}}</option>
+                </select>
                 </td>
-                {% else %}
-                    <td><input type="text" value="{{saler}}" name="saler" readonly form="form"></td>
-                }
-                {% endif %}
+                </td>
                 <td><input id="c{{i}}" type="text" value="{{costs|index:i}}" name="costs" form="form" onchange=refresh({{i}})></td>
                 <td><input id="k{{i}}" type="text" value="{{kolvo|index:i}}" name="kolvo" form="form" onchange=refresh({{i}})></td>
                 <td><input type="date" name="min_srok" value="{{srok|index:i}}" form="form" readonly></td>
@@ -132,21 +102,11 @@
             </tr>
         </table>
         </form>
-        {% if indic == 1 %}
-            <p align="center">
-            <input type="submit" name="button_1" form="form" value="Подтвердить" >
-            </p>
-        {% else %}
-            <p align="center">
-                <input type="submit" name="button_1" form="form" value="Купить" >
-                <input type="submit" name="button_2" form="form" value="Заказать">
-                <input type="submit" name="button_3" form="form" value="Взять в долг">
-            </p>
-        {% endif %}
+        <p>
+            <center><input type="submit" name="button_4" form="form" value="Погасить долг"></center>
+        </p>
         <a href="/accounts/profile/buy_products?sort=salers">Список товаров</a><br/>
         <a href="/accounts/profile/buy_products/add_product">Добавить товар в накладную</a>
-        <br/>
-        <a href="./returned/zakup">Возврат</a>
         <br/>
     </body>
 </html>

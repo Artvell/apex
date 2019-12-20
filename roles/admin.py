@@ -128,6 +128,15 @@ class Daily_Consumption_Admin(admin.ModelAdmin):
 class PrintersAdmin(admin.ModelAdmin):
     list_display=("id","name","ip_address")
 
+class RediscountAdmin(admin.ModelAdmin):
+    list_display=('red_id',"name",'kol')
+
+class Rediscount_info_Admin(admin.ModelAdmin):
+    list_display=("rediscount","progress","date")
+
+
+class Rec_money_Admin(admin.ModelAdmin):
+    list_display=("types","kolvo","date")
 #admin_site.unregister(User)
 
 '''@admin.register(User)
@@ -167,3 +176,6 @@ admin_site.register(Products_Consumption,ConsumptionAdmin)
 admin_site.register(Daily_Consumption,Daily_Consumption_Admin)
 admin_site.register(Harvester_Barcodes,Harvester_Barcodes_Admin)
 admin_site.register(Printers,PrintersAdmin)
+admin_site.register(Rediscount,RediscountAdmin)
+admin_site.register(Rediscount_info,Rediscount_info_Admin)
+admin_site.register(Receiving_Money,Rec_money_Admin)

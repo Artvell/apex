@@ -1,0 +1,41 @@
+{% include "profile.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script type="text/javascript">
+        function send_form(){
+            form=document.getElementById('forma')
+            alert_field=document.getElementById('alert')
+            real_kol=parseFloat(document.getElementById('real_kol').value.replace(',', '.'))
+            kol=parseFloat(document.getElementById('kol').value.replace(',', '.'))
+            if ((alert_field.value=="1") && (real_kol!=kol)){
+                alert("Перепроверьте!");
+                alert_field.value="0";
+                return false;
+
+            }
+            else {
+                return true;
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="product" align="center">
+        <p align="center"></p>
+        <img src="/media/{{code.name.image}}">
+        <br/><br/>
+        <h3>{{code.name.name}}</h3>
+        <form method="post" name="form" id="forma" onsubmit="return send_form()">
+            {% csrf_token %}
+            <label for="kol">Введите кол-во</label>
+            <input type="number" step="0.001" name="kol" id="kol">
+            <input type="hidden" name="alert" id="alert" value="1">
+            <input type="hidden" name="real_kol" id="real_kol" value="{{code.kolvo}}">
+            <input type="submit">
+        </form>
+        </p>
+    </div>
+</body>
+</html>

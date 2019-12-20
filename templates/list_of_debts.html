@@ -1,0 +1,16 @@
+{% include "profile.html" %}
+<html>
+    <head>
+        <title>Закупка товара</title>
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+    <body>
+        <center><h4>Список накладных с долгами</h4></center>
+        <ul>
+            {% for n in nakl %}
+            <li><a href="borrowed/?n={{n.nak_id}}">Накладная №{{n.nak_id}} от {{n.date}}</a></li>
+            {% endfor %}
+        </ul>
+    </body>
+</html>

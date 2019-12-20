@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+    <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="upload">Upload your picture:</label>
+    <input type="file" accept="image/*" name="barcode" id="upload" onchange="submit()">
+    <input type="image" name="im">
+</form>
+</body>
+</html>

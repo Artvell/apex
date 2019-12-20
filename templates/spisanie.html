@@ -17,6 +17,9 @@
             input.name = "name";
             input.className = "barcode";
             input.id=j;
+            input.addEventListener('click', function (){
+                document.getElementById('input_id').value = j;
+            });
             container.appendChild(input);
             container.appendChild(document.createElement("br"));
             var d=document.createElement("div");
@@ -39,6 +42,16 @@
             form.submit()
         }
     </script>
+    <style type="text/css">
+        .form {float: left;}
+        .photo {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%);
+        }
+        #upload {display: none;}
+        label {cursor: pointer;}
+    </style>
 
     <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
 
@@ -53,6 +66,7 @@
         {% endfor %}
     </ul>
     {% endif %}
+    <div class="form">
     <form id="container" method="POST" target="_blank">
         {% csrf_token %}
         <br/>
@@ -69,6 +83,15 @@
     {% else %}
         <button onclick="document.getElementById('container').submit();">Отправить</button>
     {% endif %}
+    </div>
+    <div class="photo" id="photo">
+            <form method="post" enctype="multipart/form-data" id="barcode">
+            {% csrf_token %}
+            <label for="upload"><img src="https://images.clipartlogo.com/files/istock/previews/1005/100582913-camera-icon-professional-photocamera-sign.jpg"></label>
+            <input type="file" accept="image/*" name="barcode" id="upload">
+            <input type="hidden" id="input_id" name="input_id" value="">
+            <div id="error"></div>
+    </div>
 
     <script>
         $(function(){ // это краткий запись $(document).ready
@@ -97,6 +120,36 @@
                             else {
                                 $(tag).css('color','green')}
                             $(tag).append(b)
+                        }
+                    }
+                });
+            });
+            $('#upload').on("change", function(){
+                  files = $('#upload')[0].files;
+                  var form = new FormData();
+                  form.append('barcode', files[0]);
+                  form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                  $.ajax({
+                    url: '/decode_barcode/',
+                    type: 'POST',
+                    data: form,
+                    csrfmiddlewaretoken: '{% csrf_token %}',
+                    cache: false,
+                    processData: false,
+                    contentType: false,
+                    success: function(data){
+                        var input_id=$('#input_id').val()
+                        console.log(data['result'])
+                        var field="#"+input_id;
+                        if (data['result']=="error"){
+                            b=document.createElement("p");
+                            $('#error').append(b);
+                            $('#error').text("Не удалось распознать штрих-код! Попробуйте еще раз!");
+                            $('#error').css('color','red');
+                        }
+                        else {
+                            $(field).val(data['result'])
+                            $(field).focus()
                         }
                     }
                 });

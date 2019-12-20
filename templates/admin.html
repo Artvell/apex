@@ -6,7 +6,29 @@
     <body>
         <h3>Краткая информация по складу</h3>
         <ul>
-            <li>{{product_last_summ}}</li>
-            <li>{{product_summ}}</li>
-            <li>{{product_debt}}</li>
+            <li>На складе продуктов на сумму: {{product_summ}}</li>
+            <li>На складе долгов на сумму: {{product_debt}}</li>
         </ul>
+        <br/>
+        <b>Последний переучет</b>
+        <ul>
+            <li>Дата: {{rediscount.date}}</li>
+            <li>Прогресс: {{rediscount.progress}}</li>
+            <li>Превыщение нормы: {{plus}} продуктов</li>
+            <li>Недостача: {{minus}} продуктов</li>
+        </ul>
+        <br/>
+        <b>Приход/расход продуктов</b>
+        <ul>
+            <li>Закуплено: {{buyed}}</li>
+            <li>Списано: {{spis}}</li>
+        </ul>
+        <br/>
+        <br/>
+        <h3>Касса</h3>
+        <ul>
+            <li>Получено: {{taken}}</li>
+            <li>Выдано: {{gaven}} </li>
+        </ul>
+    </body>
+</html>

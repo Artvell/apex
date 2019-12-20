@@ -13,7 +13,7 @@
     <body>
         {% if indic == 1 %}
         <center><b>Есть непринятая накладная!</b></center>
-        <center><a href="zakup/accept?n={{id}}">Принять</a></center>
+        <center><a href="/accounts/profile/zakup/accept?n={{id}}">Принять</a></center>
         {% else %}
         <center><b>Все накладные приняты</b></center>
         {% endif %}
@@ -22,14 +22,14 @@
         Баланс: {{balans}}<br/>
         Долг: {{debt}}<br/>
         Примерная стоимость накладной:{{cost}}<br/>
-        <form method="POST" action="buy_products/">
+        <form method="POST" action="/accounts/profile/buy_products/">
             {% csrf_token %}
         <table>
             {{ form }}
         </table>
         <input type="submit" name="button" value="Выбрать">
         <br/>
-        <a href="./returned/zakup">Возврат</a>
+        <a href="/accounts/profile/returned/zakup">Возврат</a>
         <br/>
         <br/>
         <a href="/accounts/profile/info">Инфо</a>
@@ -38,7 +38,7 @@
             Невыполненные накладные:
             <br/>
             {% for n in unrealized %}
-                <a href="./unrealized?n={{n.nak_id}}" style="color: red">№: {{n.nak_id}} Дата:{{n.date}}</a>
+                <a href="/accounts/profile/unrealized?n={{n.nak_id}}" style="color: red">№: {{n.nak_id}} Дата:{{n.date}}</a>
                 <br/>
             {% endfor %}
         </p>

@@ -1,0 +1,95 @@
+{% include "profile.html" %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Переучет</title>
+    <meta charset="utf-8">
+    <style type="text/css">
+        .form {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%);
+        }
+        .photo {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%);
+        }
+        #upload {display: none;}
+        label {cursor: pointer;}
+    </style>
+
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+
+</head>
+</head>
+<body>
+    <div id="photo">
+            <h3>Переучет №{{id}} от {{date}}</h3>
+            <form method="post" enctype="multipart/form-data" id="barcode">
+            {% csrf_token %}
+            <label for="upload"><img src="https://images.clipartlogo.com/files/istock/previews/1005/100582913-camera-icon-professional-photocamera-sign.jpg"></label>
+            <input type="file" accept="image/*" name="barcode" id="upload">
+            <div id="error"></div>
+    </div>
+    <div id="form">
+        <form id="barcode" method="post">
+            {% csrf_token %}
+            <input type="text" name="bar" id="bar">
+            <input type="hidden" name="r_id" value="{{id}}">
+            <input type="submit">
+        </form>
+    <center><button id="close"><h3>Завершить переучет</h3></button></center>
+
+    <script>
+        $(function(){
+            $('#upload').on("change", function(){
+                  files = $('#upload')[0].files;
+                  var form = new FormData();
+                  form.append('barcode', files[0]);
+                  form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                  $.ajax({
+                    url: '/decode_barcode/',
+                    type: 'POST',
+                    data: form,
+                    csrfmiddlewaretoken: '{% csrf_token %}',
+                    cache: false,
+                    processData: false,
+                    contentType: false,
+                    success: function(data){
+                        if (data['result']=="error"){
+                            b=document.createElement("p");
+                            $('#error').append(b);
+                            $('#error').text("Не удалось распознать штрих-код! Попробуйте еще раз!");
+                            $('#error').css('color','red');
+                        }
+                        else {
+                            $("#bar").val(data['result'])
+                            $("#bar").focus()
+                        }
+                    }
+                });
+            });
+
+            $('#close').on("click",function(){
+                  var form = new FormData();
+                  form.append('id','{{id}}');
+                  form.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                $.ajax({
+                    url: '/close_rediscount/',
+                    type: 'POST',
+                    data: form,
+                    cache: false,
+                    processData: false,
+                    contentType: false,
+                    success: function(data){
+                        if (data['result']=="first") {alert("Это первый товар!")}
+                        else { window.location.replace("/accounts/profile/") }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

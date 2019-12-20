@@ -12,15 +12,19 @@
     <body>
         {% render_table table %}
         <br/>
-        <center><a href="select">Принять товар</a></center>
+        <center><a href="/accounts/profile/select">Принять товар</a></center>
         <br/>
         {% if indic == 1 %}
-            <center><a href="spis/zagot?n={{nak_id}}" style="color: red">Списать заготовщику</a></center>
+            <center><a href="/accounts/profile/spis/zagot?n={{nak_id}}" style="color: red">Списать заготовщику</a></center>
             <br/>
         {% endif %}
-        <center><a href="spis">Списать</a></center>
+        <center><a href="/accounts/profile/spis">Списать</a></center>
         <br/>
-        <center><a href="nakl_orders">Накладные на списание</a></center>
+        <center><a href="/accounts/profile/nakl_orders">Накладные на списание</a></center>
+        <br/>
+        <center><a href="/accounts/profile/rediscount/?id={{id}}">Начать переучет</a></center>
+        <br/>
+        <center><a href="/accounts/profile/remove_spis/?n={{n}}">Отменить последнее списание</a></center>
         <br/>
         <center><a href="/accounts/profile/codes_table">Таблица штрих-кодов</a></center>
     </body>
