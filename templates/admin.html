@@ -9,26 +9,33 @@
             <li>На складе продуктов на сумму: {{product_summ}}</li>
             <li>На складе долгов на сумму: {{product_debt}}</li>
         </ul>
+        <a href="/admin/roles/stock/" target="_blank">Просмотреть склад</a>
         <br/>
-        <b>Последний переучет</b>
+        <br/>
+        <b>Последний переучет №{{r_id}}</b>
         <ul>
-            <li>Дата: {{rediscount.date}}</li>
-            <li>Прогресс: {{rediscount.progress}}</li>
-            <li>Превыщение нормы: {{plus}} продуктов</li>
+            <li>Прогресс: {{progress}}</li>
+            <li>Превышение нормы: {{plus}} продуктов</li>
             <li>Недостача: {{minus}} продуктов</li>
         </ul>
+        <a href="/accounts/profile/info_about_rediscount/" target="_blank">Подробней про переучет</a>             <a href="/accounts/profile/all_rediscounts_info/" target="_blank">Отчеты по переучетам</a>
+        <br/>
         <br/>
         <b>Приход/расход продуктов</b>
         <ul>
             <li>Закуплено: {{buyed}}</li>
             <li>Списано: {{spis}}</li>
         </ul>
+        <a href="/accounts/profile/receipt/" target="_blank">Подробней о приходе</a>
+        <a href="/accounts/profile/consumption/" target="_blank">Подробней о списаниях</a>
         <br/>
         <br/>
         <h3>Касса</h3>
         <ul>
-            <li>Получено: {{taken}}</li>
-            <li>Выдано: {{gaven}} </li>
+            <li>Наличные: {{nal}}</li>
+            <li>Безналичные: {{beznal}}</li>
+            <li><a href="/admin/roles/receiving_money/" target="_blank">Получено: {{taken}} </a></li>
+            <li>Выдано: {{gaven}}. <a href="/admin/roles/nakl_money_zakup/" target="_blank">Закупщику - {{zak}}</a>    <a href="/admin/roles/nakl_money_other/" target="_blank">Остальным - {{oth}}</a></li>
         </ul>
     </body>
 </html>

@@ -1,0 +1,14 @@
+{% include "profile.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Переучеты</title>
+</head>
+<body>
+    <ul>
+        {% for r in numbers %}
+        <li><a href="/accounts/profile/info_about_rediscount/?r={{r.rediscount.red_id}}">Переучет №{{r.rediscount.red_id}} от {{r.date}}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

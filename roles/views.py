@@ -12,6 +12,7 @@ from django_tables2 import RequestConfig
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
+import datetime as d
 from datetime import datetime,timedelta,timezone
 from escpos.printer import Network
 
@@ -63,12 +64,20 @@ def print_barcode_2(product,d,barcod,prim): #печать чеков на скл
             product=translit(product,reversed=True)
         except LanguageDetectionError:
             product=product
-        code.set(align="center")
-        code.text(" \n")
-        code.text(" \n")
-        code.text(f"{product}\nGoden do: {d}\n")
-        code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
-        code.text(" \n")
+        if prim=="" or prim==" ":
+            code.set(align="center")
+            code.text(" \n")
+            code.text(" \n")
+            code.text(f"{product}\nGoden do: {d}\n")
+            code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
+            code.text(" \n")
+        else:
+            code.set(align="center")
+            code.text(" \n")
+            #code.text(" \n")
+            code.text(f"{product}\nGoden do: {d}\nPrim:{prim}\n")
+            code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
+            code.text(" \n")
     except Exception as e:
         print(e)
     #code.cut()
@@ -250,17 +259,21 @@ def profile(request):
         product_debt=0
         for st in stock:
             try:
-                product_summ+=(st.ostat*LastCost.objects.get(product=st.name).average)
+                c=LastCost.objects.get(product=st.name).average
+                if c==0.0:
+                    c=LastCost.objects.get(product=st.name).cost
+                product_summ+=(st.ostat*c)
             except ObjectDoesNotExist:
+                #product_summ+=(st.ostat*LastCost.objects.get(product=st.name).cost)
                 continue
         debted=Purchase.objects.filter(is_borrowed=True)
         for d in debted:
             product_debt+=d.summ
         product_summ=round(product_summ,3)
         product_debt=round(product_debt,3)
-        rediscount=Rediscount_info.objects.all().order_by("date").last()
+        rediscount=Rediscount.objects.all().last()
         plus,minus=0,0
-        for r in Rediscount.objects.filter(red_id=rediscount.rediscount.red_id):
+        for r in Rediscount.objects.filter(red_id=rediscount.red_id):
             if r.kol>0:
                 plus+=1
             elif r.kol<0:
@@ -275,12 +288,17 @@ def profile(request):
             n1+=n.kolvo
         for n in nakl_zakup:
             n2+=n.kolvo
+        n1=round(n1,3)
+        n2=round(n2,3)
         summ=round(n1+n2,3)
         rec=Receiving_Money.objects.all()
         rec_summ=0
         for r in rec:
             rec_summ+=r.kolvo
         rec_summ=round(rec_summ,3)
+        money=Moneys.objects.all()
+        nal=money[0].kolvo
+        beznal=money[1].kolvo
         return render(request,"admin.html",{
             "product_summ":product_summ,
             "product_debt":product_debt,
@@ -290,7 +308,12 @@ def profile(request):
             "buyed":buyed,
             "spis":spis,
             "taken":rec_summ,
-            "gaven":summ
+            "gaven":summ,
+            "zak":n1,
+            "oth":n2,
+            "r_id":rediscount.red_id,
+            "nal":nal,
+            "beznal":beznal
             })
     else:
         return render(request,roles[j],{"user":n,"job":job})
@@ -302,8 +325,15 @@ def printing_barcodes(request):
     if j==1 or j==8:
         if request.method=="POST":
             barcod=request.POST.get("barcod")
-            kol,prim=request.POST.get("kol").split()
-            kol=int(kol)
+            #kol,prim=request.POST.get("kol").split()
+            kol=int(request.POST.get("kol"))
+            text=kol.split("|")
+            if len(text)==1:
+                kol=int(shtr_kol)
+                com=""
+            else:
+                kol=int(text[0])
+                com=text[1]
             date=f"{barcod[-8:-6]}-{barcod[-6:-4]}-{barcod[-4:]}"
             ddate=datetime.strptime(date,r"%d-%m-%Y").date()
             print(ddate)
@@ -311,7 +341,7 @@ def printing_barcodes(request):
             print("$$$$$$$$$$$$$$$$",int(barcod[:-8]))
             product=Products.objects.get(id=int(barcod[:-8])).name
             for i in range(kol):
-                print_barcode_2(product,ddate,barcod,prim)
+                print_barcode_2(product,ddate,barcod,com)
             trash()
             return None
         else:
@@ -403,7 +433,8 @@ def give_money_zakup(request):
             m.kolvo-=money
             m.save()
             t=Types_of_money.objects.get(types=types)
-            Nakl_money_zakup(name=user,kolvo=money,types=t).save()
+            date=datetime.now().date()
+            Nakl_money_zakup(name=user,kolvo=money,types=t,date=date).save()
             try:
                 b=Buyer_Balans.objects.get(buyer=user)
                 b.balans+=money
@@ -437,7 +468,8 @@ def give_money_other(request):
             m.kolvo-=round(float(money),3)
             m.save()
             t=Types_of_money.objects.get(types=types)
-            Nakl_money_other(name=name,kolvo=round(float(money),3),for_why=for_why,types=t).save()
+            date=datetime.now().date()
+            Nakl_money_other(name=name,kolvo=round(float(money),3),for_why=for_why,types=t,date=date).save()
             return redirect("..")
         else:
             types=Moneys.objects.filter(kolvo__gt=0.0)
@@ -670,6 +702,52 @@ def get_barcode(request):
         return redirect("/accounts/profile")
 
 @login_required
+def get_product_without_nakl(request):
+    url=request.get_full_path().split("/")
+    j=request.user.roles.role
+    products=Products.objects.all()
+    if j==1 or j==8:
+        if request.method!="POST":
+            return render(request,"sklad_no_nakl.html",{"products":products})
+        else:
+            product=request.POST.get("product")
+            kol=request.POST.get("kol")
+            kol=round(float(kol),3)
+            date=request.POST.get("date")
+            date_now=datetime.now().date()
+            shtr_kol=request.POST.get("shtr_kol",0)
+            text=shtr_kol.split("|")
+            print(text,len(text))
+            if len(text)==1:
+                shtr_kol=int(shtr_kol)
+                com=""
+            else:
+                shtr_kol=int(text[0])
+                com=text[1]
+            srok=datetime.strptime(date,r"%Y-%m-%d").date()
+            prod=Products.objects.get(name=product)
+            barcod=generate_barcode(prod.id,srok)
+            try:
+                c=Codes.objects.get(shtrih=barcod)
+                c.kolvo+=fact_kol
+                c.save()
+            except ObjectDoesNotExist:
+                Codes(name=prod,kolvo=kol,shtrih=barcod).save()
+            for i in range(shtr_kol):
+                print_barcode_2(product,srok,barcod,com)
+            print(4)
+            trash()
+            try:
+                st=Stock.objects.get(name=prod)
+                st.ostat+=kol
+                st.save()
+            except ObjectDoesNotExist:
+                Stock(name=prod,ostat=kol).save()
+            Without_nakl(name=prod,srok=date,fact_kol=kol,purchase=request.user,date=date_now).save()
+            return render(request,"sklad_no_nakl.html",{"products":products})
+
+
+@login_required
 def get_product(request):
     url=request.get_full_path().split("/")
     if request.method=="POST":
@@ -681,8 +759,14 @@ def get_product(request):
                 product=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=pid))
                 kol=float(request.POST.get("kol"))
                 srok=request.POST.get("srok")
-                shtr_kol,prim=request.POST.get("shtr_kol").split()
-                shtr_kol=int(shtr_kol)
+                shtr_kol=request.POST.get("shtr_kol")
+                text=shtr_kol.split("|")
+                if len(text)==1:
+                    shtr_kol=int(shtr_kol)
+                    com=""
+                else:
+                    shtr_kol=int(text[0])
+                    com=text[1]
                 srok=datetime.strptime(srok,r"%Y-%m-%d").date()
                 print(srok)
                 if srok<product.min_srok:
@@ -715,7 +799,7 @@ def get_product(request):
                         print("!@##$$@!@!@")
                     print("####")
                     for i in range(shtr_kol):
-                        print_barcode_2(product.name.name,srok,barcod,prim)
+                        print_barcode_2(product.name.name,srok,barcod,com)
                     print(4)
                     trash()
                     if fact_kol<product.purchased_kol:
@@ -1101,7 +1185,8 @@ def nakl_orders(request):
     j=request.user.roles.role
     if j==1 or j==8:
         if request.method!="POST":
-            naks=Spis.objects.all()
+            nakl=int(Spis.objects.all().last().nak_id)
+            naks=Spis.objects.filter(nak_id__gt=(nakl-101))
             nak=[]
             products=Products.objects.all()
             n_id=[]
@@ -1111,9 +1196,9 @@ def nakl_orders(request):
                     nak.append(n)
                     n_id.append(n.nak_id)
             if e=="1":
-                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"indic":1,"nak_id":naks.last().nak_id})
+                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"indic":1,"nak_id":nakl})
             else:
-                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"nak_id":naks.last().nak_id})
+                return render(request,"nakl_orders.html",{"naks":nak,"products":products,"nak_id":nakl})
         else:
             name=request.POST.get("product")
             try:
@@ -1164,7 +1249,20 @@ def barcode_for_rediscount(request):
     if j==1 or j==8 or j==8:
         r_id=int(request.GET.get("id"))
         if request.method!="POST":
-            return render(request,"pereuchet.html",{"id":r_id,"date":datetime.now().date()})
+            stock=Stock.objects.all()
+            redisc=Rediscount.objects.filter(red_id=r_id)
+            status=f"{redisc.count()}/{stock.count()}"
+            print(redisc)
+            other=[]
+            for st in stock:
+                f=0
+                for r in redisc:
+                    if st.name==r.name:
+                        print("@@")
+                        f=1
+                if f!=1:
+                    other.append(st.name)
+            return render(request,"pereuchet.html",{"id":r_id,"date":datetime.now().date(),"other":other,"progress":status})
         else:
             bar=request.POST.get("bar")
             if len(bar)==12:
@@ -1182,15 +1280,20 @@ def product_for_rediscount(request):
         code=Codes.objects.get(id=code_id)
         if request.method=="POST":
             new_kol=float(request.POST.get("kol"))
-            difference=code.kolvo-new_kol
+            difference=(-1)*(code.kolvo-new_kol)
             stock=Stock.objects.get(name=code.name)
-            code.kolvo-=difference
-            stock.ostat-=difference
+            code.kolvo+=difference
+            stock.ostat+=difference
             stock.ostat=round(stock.ostat,3)
             code.kolvo=round(code.kolvo,3)
             code.save()
             stock.save()
-            Rediscount(red_id=r_id,name=code.name,kol=difference).save()
+            try:
+                r=Rediscount.objects.get(Q(red_id=r_id)&Q(name=code.name))
+                r.kol=round((difference+r.kol),3)
+                r.save()
+            except ObjectDoesNotExist:
+                Rediscount(red_id=r_id,name=code.name,kol=round(difference,3)).save()
             return redirect(f"/accounts/profile/rediscount/?id={r_id}")
         else:
             return render(request,"product_rediscount.html",{"code":code})
@@ -1199,7 +1302,7 @@ def product_for_rediscount(request):
 def close_rediscount(request):
     j=request.user.roles.role
     job=Roles.choices[j-1][1]
-    if j==1 or j==8 or j==8:
+    if j==1 or j==8:
         if request.method=="POST":
             red_id=int(request.POST.get("id"))
             rediscounts=Rediscount.objects.filter(red_id=red_id).count()
@@ -1213,6 +1316,116 @@ def close_rediscount(request):
 
 
 @login_required
+def info_about_rediscount(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==1 or j==8:
+        r_id=request.GET.get("r","")
+        if r_id=="":
+            r_id=Rediscount.objects.all().last().red_id
+        else:
+            r_id=int(r_id)
+        try:
+            rediscount_info=Rediscount_info.objects.get(rediscount__red_id=r_id)
+            b=0
+        except ObjectDoesNotExist:
+            b=1
+        rediscount=Rediscount.objects.filter(red_id=r_id)
+        products=[r.name for r in rediscount]
+        kol=[float(Stock.objects.get(name=r.name).ostat) for r in rediscount]
+        average=[]
+        for r in rediscount:
+            #print(r.name)
+            try:
+                av=round(float(LastCost.objects.get(product=r.name).average),3)
+                if av==0.0:
+                    average.append(round(float(LastCost.objects.get(product=r.name).cost),3))
+                else:
+                    average.append(av)
+            except ObjectDoesNotExist:
+                #average.append(0)
+                prod=Ingredients.objects.filter(product=r.name)
+                print(r.name)
+                if prod.count()==0:
+                    average.append(0)
+                else:
+                    ccost=0.0
+                    for p in prod:
+                        try:
+                            print("!",p.ingr)
+                            cost=round(float(LastCost.objects.get(product=p.ingr).average),3)
+                            if cost==0.0:
+                                cost=round(float(LastCost.objects.get(product=p.ingr).cost),3)
+                            ccost+=cost
+                        except ObjectDoesNotExist:
+                            ccost=0.0
+                    average.append(ccost)
+                    #LastCost(cost=ccost,average=ccost,product=r.name).save()
+        summ=[]
+        ssumm=0
+        for i in range(rediscount.count()):
+            ssumm+=round(kol[i]*average[i],3)
+            summ.append(ssumm)
+            ssumm=0
+        plus=[]
+        minus=[]
+        for r in rediscount:
+            if r.kol>0:
+                plus.append(float(r.kol))
+                minus.append(" ")
+            elif r.kol<0:
+                minus.append(float(r.kol))
+                plus.append(" ")
+            else:
+                minus.append(" ")
+                plus.append(" ")
+        status="Закончен" if b==0 else "В процессе"
+        stock=Stock.objects.all()
+        redisc=Rediscount.objects.filter(red_id=r_id)
+        progress=f"{redisc.count()}/{stock.count()}"
+        all_summ=sum(summ)
+        all_plus=0
+        all_minus=0
+        for i in range(rediscount.count()):
+            if plus[i]!=" ":
+                all_plus+=round((plus[i]*average[i]),3)
+            else:
+                i+=1
+        for i in range(rediscount.count()):
+            if minus[i]!=" ":
+                all_minus+=round((minus[i]*average[i]),3)
+            else:
+                i+=1
+        return render(request,"rediscount_info.html",
+            {
+            "range":range(rediscount.count()),
+            #"info":rediscount_info,
+            "products":products,
+            "kol":kol,
+            "average":average,
+            "summ":summ,
+            "plus":plus,
+            "minus":minus,
+            "all_summ":all_summ,
+            "plus_summ":all_plus,
+            "minus_summ":all_minus,
+            "status":status,
+            "progress":progress
+            })
+
+@login_required
+def all_rediscounts(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==3 or j==8:
+        red=Rediscount_info.objects.all()
+        numbers=[]
+        for r in red:
+            numbers.append(r)
+        numbers=numbers[::-1]
+        return render(request,"all_rediscounts_info.html",{"numbers":numbers})
+
+@login_required
 def unrealized(request):
     j=request.user.roles.role
     job=Roles.choices[j-1][1]
@@ -1223,6 +1436,76 @@ def unrealized(request):
         for u in unrealized:
             summ+=round((u.kolvo*u.last_cost),3)
         return render(request,"zakup_unrealized.html",{"unrealized":unrealized,"summ":summ})
+
+@login_required
+def info_table(request):
+    j=request.user.roles.role
+    job=Roles.choices[j-1][1]
+    if j==8:
+        products=Products.objects.all()
+        url=request.get_full_path().split("/")
+        if request.method!="POST":
+            if url[3]=="receipt":
+                nakl=Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True))
+                return render(request,"info_table.html",{"ind":1,"nak":nakl,"products":products})
+            elif url[3]=="consumption":
+                nakl=Spis.objects.filter(is_removed=False)
+                return render(request,"info_table.html",{"ind":2,"nak":nakl,"products":products})
+        else:
+            print("!!!!")
+            from itertools import chain
+            nak_id=request.POST.get("nak_id","")
+            date=request.POST.get("date","")
+            to=request.POST.get("to","")
+            name=request.POST.get("name","")
+            product=request.POST.get("product","")
+            if nak_id=="" and date=="" and name=="" and product=="" and to=="":
+                if url[3]=="receipt":
+                    nakl=Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True))
+                    return render(request,"info_table.html",{"ind":1,"nak":nakl,"products":products})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(is_removed=False)
+                    return render(request,"info_table.html",{"ind":2,"nak":nakl,"products":products})
+            elif nak_id!="":
+                print("$$$$$$")
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(nak_id=int(nak_id))),Without_nakl.objects.filter(nak_id=nak_id))
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(nak_id=int(nak_id)))
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+            elif date!="":
+                if to=="":
+                    to=datetime.today()
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)))
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(date__gte=date)&Q(date__lte=to))
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+            elif to!="":
+                if date=="":
+                    date=d.date(2018,1,1)
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)))
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(date__gte=date)&Q(date__lte=to))
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+            elif name!="":
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(purchase__username=name)),Without_nakl.objects.filter(purchase__username=name))
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(receiver__receiver=name))
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+            elif product!="":
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(name__name=product)),Without_nakl.objects.filter(name__name=product))
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(product_name=product))
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
 
 @login_required
 def buy_products(request):
@@ -1407,6 +1690,7 @@ def buy_product(request):
                 last_cost=LastCost.objects.get(product=product.name)
                 last_cost.cost=round(float(summ)/float(kol),3)
                 old_kol=last_cost.kol
+                kol=float(kol)
                 last_cost.kol+=round(kol,3)
                 last_cost.kol=round(last_cost.kol,3)
                 if old_kol==0:
@@ -1451,7 +1735,7 @@ def buy_more_products(request):
                     costs=[str(c).replace(",",".") for c in costs]
                     kolvo=[str(c).replace(",",".") for c in kolvo]
                     summ=[str(c).replace(",",".") for c in summ]
-                    return render(request,"buy_more_products.html",{"products":products,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+                    return render(request,"buy_more_products.html",{"products":products,"saler":name.name,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products)),"nak_id":nak_id})
                 else:
                     nak_id = int(nak_id)
                     another=Purchase.objects.filter(Q(nak_id=nak_id)&Q(purchased_kol=0.0)&Q(is_ordered=False)&Q(is_borrowed=False))
@@ -1467,7 +1751,7 @@ def buy_more_products(request):
                     costs=[str(c).replace(",",".") for c in costs]
                     kolvo=[str(c).replace(",",".") for c in kolvo]
                     summ=[str(c).replace(",",".") for c in summ]
-                    return render(request,"buy_more_products.html",{"ind":2,"pids":pids,"n":nak_id,"products":products,"salers":salers,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
+                    return render(request,"buy_more_products.html",{"ind":2,"nak_id":nak_id,"pids":pids,"n":nak_id,"products":products,"salers":salers,"costs":costs,"kolvo":kolvo,"ids":ids,"summ":summ,"all_summ":all_summ,"srok":srok,"range":range(len(products))})
 
         else:
             print(request.POST)
@@ -1520,6 +1804,7 @@ def buy_more_products(request):
                             last_cost=LastCost.objects.get(product=prod.name)
                             last_cost.cost=round(float(cost),3)
                             old_kol=last_cost.kol
+                            kol=float(kol)
                             last_cost.kol+=round(kol,3)
                             last_cost.kol=round(last_cost.kol,3)
                             if old_kol==0:

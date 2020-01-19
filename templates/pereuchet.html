@@ -7,14 +7,26 @@
     <meta charset="utf-8">
     <style type="text/css">
         .form {
-            position: absolute;
-            left: 50%;
+            /*position: absolute;
+            left: 50%;*/
+            float:left;
             transform: translate(-50%);
         }
         .photo {
-            position: absolute;
-            left: 50%;
+            /*position: absolute;
+            left: 50%;*/
+            float:left;
             transform: translate(-50%);
+        }
+        .layer {
+            margin: 0 0 250 800;
+            float: right;
+            position: fixed;
+            overflow: scroll; /* Добавляем полосы прокрутки */
+            width: 300px; /* Ширина блока */
+            height: 800px; /* Высота блока */
+            padding: 5px; /* Поля вокруг текста */
+            border: solid 1px black; /* Параметры рамки */
         }
         #upload {display: none;}
         label {cursor: pointer;}
@@ -25,8 +37,15 @@
 </head>
 </head>
 <body>
+    <div class="layer">
+        <ul>
+            {% for p in other %}
+            <li>{{p}}</li>
+            {% endfor %}
+        </ul>
+    </div>
     <div id="photo">
-            <h3>Переучет №{{id}} от {{date}}</h3>
+            <h3>Переучет №{{id}} от {{date}}  (<b>Прогресс: {{progress}}</b>)</h3>
             <form method="post" enctype="multipart/form-data" id="barcode">
             {% csrf_token %}
             <label for="upload"><img src="https://images.clipartlogo.com/files/istock/previews/1005/100582913-camera-icon-professional-photocamera-sign.jpg"></label>
@@ -40,8 +59,13 @@
             <input type="hidden" name="r_id" value="{{id}}">
             <input type="submit">
         </form>
-    <center><button id="close"><h3>Завершить переучет</h3></button></center>
-
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <button id="close"><h3>Завершить переучет</h3></button>
+    </div>
     <script>
         $(function(){
             $('#upload').on("change", function(){

@@ -87,13 +87,13 @@ class UserAdmin(admin.ModelAdmin):
     list_display=("username","first_name","is_superuser")
 
 class CostAdmin(admin.ModelAdmin):
-    list_display=("product","cost")
+    list_display=("product","cost","average","kol")
 
 class Money_zakup_Admin(admin.ModelAdmin):
-    list_display=("name","types","kolvo")
+    list_display=("name","types","kolvo","date")
 
 class Money_other_Admin(admin.ModelAdmin):
-    list_display=("name","types","kolvo")
+    list_display=("name","types","kolvo","date")
 
 class Money_Admin(admin.ModelAdmin):
     list_display=("types","kolvo")
@@ -137,6 +137,10 @@ class Rediscount_info_Admin(admin.ModelAdmin):
 
 class Rec_money_Admin(admin.ModelAdmin):
     list_display=("types","kolvo","date")
+
+class Without_nakl_admin(admin.ModelAdmin):
+    list_display=("name","fact_kol","purchase","srok")
+
 #admin_site.unregister(User)
 
 '''@admin.register(User)
@@ -179,3 +183,4 @@ admin_site.register(Printers,PrintersAdmin)
 admin_site.register(Rediscount,RediscountAdmin)
 admin_site.register(Rediscount_info,Rediscount_info_Admin)
 admin_site.register(Receiving_Money,Rec_money_Admin)
+admin_site.register(Without_nakl,Without_nakl_admin)

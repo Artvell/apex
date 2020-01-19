@@ -334,7 +334,19 @@ class Purchase(models.Model):
         verbose_name="Накладная для закупщика"
         verbose_name_plural="Накладные для закупщика"
 
-
+class Without_nakl(models.Model):
+    objects=models.Manager()
+    nak_id=models.IntegerField(verbose_name="Номер накладной",default=0)
+    name = models.ForeignKey(Products, models.DO_NOTHING,verbose_name="Название")
+    srok = models.DateField(blank=True, null=True,verbose_name="Срок годности")
+    purchase = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True,verbose_name="От кого?")
+    fact_kol=models.FloatField(verbose_name="Фактическое кол-во",blank=True, null=True,default=0.0)
+    date=models.DateField(blank=True, null=True,verbose_name="Дата")
+    def __str__(self):
+        return self.name.name
+    class Meta:
+        verbose_name="Без накладной"
+        verbose_name_plural="Без накладной"
 
 class Rashod_zagot(models.Model):
     objects=models.Manager()
@@ -407,6 +419,7 @@ class Spis(models.Model):
     nak_id = models.IntegerField(verbose_name="Номер накладной")
     user = models.CharField(max_length=20,verbose_name="Кем выдано")
     product = models.CharField(max_length=100,verbose_name="Товар")
+    product_name = models.CharField(max_length=100,verbose_name="Название товара")
     kol = models.FloatField(verbose_name="Кол-во")
     date = models.DateTimeField(blank=True, null=True,verbose_name="Дата")
     receiver = models.ForeignKey(Receivers,on_delete=models.PROTECT,verbose_name="Кому")
@@ -444,7 +457,7 @@ class Rediscount_info(models.Model):
     date = models.DateField(verbose_name="Дата переучета", blank=True, null=True)
     progress = models.CharField(verbose_name="Прогресс переучета",default=0.0,max_length=10)
     user= models.ForeignKey(User,verbose_name="Провел",on_delete=models.CASCADE, blank=True, null=True)
-    is_closed= models.FloatField(verbose_name="Закончен?",default=False)
+    is_closed= models.BooleanField(verbose_name="Закончен?",default=False)
     def __str__(self):
         return str(self.rediscount)
     class Meta:

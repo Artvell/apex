@@ -1,0 +1,67 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+</head>
+<body>
+    <p align="center">
+        <form method="post">
+            {% csrf_token %}
+            <h3>№ накладной: </h3><input type="text" name="nak_id">
+            <h3>Продукт:</h3><input type="text" list="products" name="product" autocomplete="off">
+            <datalist id="products">
+            {% for product in products %}
+                <option>{{product.name}}</option>
+            {% endfor %}
+            </datalist>
+            <h3>   От: </h3><input type="date" name="date">
+            <h3>   До: </h3><input type="date" name="to">
+            <h3>   Имя: </h3><input type="text" name="name">
+            <input type="submit" value="Искать">
+        </form>
+    </p>
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    <p align="center">
+        <table border="1px">
+            {% if ind == 1 %}
+                <caption>Приход</caption>
+            {% elif ind == 2 %}
+                <caption>Списание</caption>
+            {% endif %}
+            <tr>
+                <th>№ накладной:</th>
+                <th>Продукт</th>
+                <th>Кол-во</th>
+                <th>Имя</th>
+                <th>Дата</th>
+            </tr>
+            {% if ind == 1 %}
+                {% for product in nakl %}
+                <tr>
+                    <td>{{product.nak_id}}</td>
+                    <td>{{product.name}}</td>
+                    <td>{{product.fact_kol}}</td>
+                    <td>{{product.purchase}}</td>
+                    <td>{{product.date}}</td>
+                </tr>
+                {% endfor %}
+            {% elif ind == 2 %}
+                {% for product in nakl %}
+                <tr>
+                    <td>{{product.nak_id}}</td>
+                    <td>{{product.product_name}}</td>
+                    <td>{{product.kol}}</td>
+                    <td>{{product.receiver}}</td>
+                    <td>{{product.date}}</td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </table>
+    </p>
+</body>
+</html>

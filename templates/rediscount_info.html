@@ -1,0 +1,53 @@
+{% include "profile.html" %}
+{% load custom_templates %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Итог переучета</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <p align="center">
+        <h3><center><b>Переучет №{{info.rediscount.r_id}} от {{info.date}}</b></center><h3>
+        <p>
+            <ul>
+            <li><b>Прогресс: </b>{{progress}}</li>
+            <li><b>Провел: </b> {{info.user}}</li>
+            <li><b>Статус: </b>{{status}}</li>
+        </p>
+        <table border="1px">
+            <caption>Подробности</caption>
+            <tr>
+                <th>Продукт</th>
+                <th>Кол-во на складе</th>
+                <th>Средняя цена</th>
+                <th>Сумма</th>
+                <th><center><b>+</b></center></th>
+                <th><center><b>-</b></center></th>
+                <th>    </th>
+            </tr>
+            {% for i in range %}
+            <tr>
+                <td>{{products|index:i}}</td>
+                <td>{{kol|index:i}}</td>
+                <td>{{average|index:i}}</td>
+                <td>{{summ|index:i}}</td>
+                <td>{{plus|index:i}}</td>
+                <td>{{minus|index:i}}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td colspan="6">Общая сумма продуктов</td>
+                <td>{{all_summ}}</td>
+            </tr>
+            <tr>
+                <td colspan="6">Недостача на сумму</td>
+                <td>{{minus_summ}}</td>
+            </tr>
+            <tr>
+                <td colspan="6">Превышение продуктов на сумму</td>
+                <td>{{plus_summ}}</td>
+            </tr>
+    </p>
+</body>
+</html>
