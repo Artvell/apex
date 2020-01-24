@@ -31,7 +31,7 @@ class GetForm(forms.Form):
         super(GetForm, self).__init__(*args, **kwargs)
         self.fields['kol']=forms.FloatField(label="Количество")
         #shtrih=forms.IntegerField(label="Штрих код")
-        self.fields['srok']=forms.DateField(label="Срок годности")
+        #self.fields['srok']=forms.DateField(label="Срок годности")
         self.fields['shtr_kol']=forms.IntegerField(label="Количество штрих-кодов")
 
 class GetForm2(forms.Form):

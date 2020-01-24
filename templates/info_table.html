@@ -9,7 +9,12 @@
     <p align="center">
         <form method="post">
             {% csrf_token %}
-            <h3>№ накладной: </h3><input type="text" name="nak_id">
+            <h3>№ накладной: </h3><input type="text" name="nak_id" list="nakls" autocomplete="off">
+            <datalist id="nakls">
+                {% for n in nakls %}
+                <option>{{n}}</option>
+                {% endfor %}
+            </datalist>
             <h3>Продукт:</h3><input type="text" list="products" name="product" autocomplete="off">
             <datalist id="products">
             {% for product in products %}
@@ -18,7 +23,17 @@
             </datalist>
             <h3>   От: </h3><input type="date" name="date">
             <h3>   До: </h3><input type="date" name="to">
-            <h3>   Имя: </h3><input type="text" name="name">
+            {% if ind == 1 %}
+            <h3>   Закупщик: </h3>
+            {% elif ind == 2 %}}
+            <h3>   Кому списано: </h3>
+            {% endif %}
+            <input type="text" name="name" list="names" autocomplete="off">
+            <datalist id="names">
+            {% for n in names %}
+                <option>{{n}}</option>
+            {% endfor %}
+            </datalist>
             <input type="submit" value="Искать">
         </form>
     </p>
@@ -62,6 +77,11 @@
                 {% endfor %}
             {% endif %}
         </table>
+        {% if ind == 1 %}
+        <a href="/media/prihod.xls" download>Скачать результат в Excel</a>
+        {% elif ind == 2 %}
+        <a href="/media/spis.xls" download>Скачать результат в Excel</a>
+        {% endif %}
     </p>
 </body>
 </html>

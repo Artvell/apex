@@ -23,6 +23,7 @@ from transliterate.exceptions import LanguageDetectionError
 
 from pyzbar.pyzbar import decode
 from PIL import Image
+import xlwt
 
 def generate_barcode(pid,date):
     i=str(pid).zfill(4)
@@ -54,7 +55,7 @@ def print_barcode(name,product,d1,d2,barcod): #печать чеков у заг
     code.text(" \n")
     #code.cut()
 
-def print_barcode_2(product,d,barcod,prim): #печать чеков на складе (от закупщика)
+def print_barcode_2(product,d,barcod,prim,edizm): #печать чеков на складе (от закупщика)
     try:
         ip=Printers.objects.get(id=1).ip_address
         print("ip1=",ip)
@@ -64,20 +65,16 @@ def print_barcode_2(product,d,barcod,prim): #печать чеков на скл
             product=translit(product,reversed=True)
         except LanguageDetectionError:
             product=product
-        if prim=="" or prim==" ":
-            code.set(align="center")
-            code.text(" \n")
-            code.text(" \n")
-            code.text(f"{product}\nGoden do: {d}\n")
-            code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
-            code.text(" \n")
-        else:
-            code.set(align="center")
-            code.text(" \n")
-            #code.text(" \n")
-            code.text(f"{product}\nGoden do: {d}\nPrim:{prim}\n")
-            code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
-            code.text(" \n")
+        try:
+            edizm=translit(edizm,reversed=True)
+        except LanguageDetectionError:
+            edizm=edizm
+        code.set(align="center")
+        code.text(" \n")
+        #code.text(" \n")
+        code.text(f"{product}\nProizvedeno: {d}\n{edizm}:{prim}\n")
+        code.barcode(barcod, 'EAN13',90, 2,align_ct=False)
+        code.text(" \n")
     except Exception as e:
         print(e)
     #code.cut()
@@ -107,6 +104,47 @@ def draw_barcode(barcod):
     ean=EAN(barcod,writer=ImageWriter())
     fullname = ean.save('ean13_barcode')
     return fullname
+
+def create_xls_search_results(f,result):
+    try:
+        book = xlwt.Workbook('utf8')
+        sheet = book.add_sheet('results')
+        sheet.write(0,0,'№ накладной')
+        sheet.write(0,1,'Продукт')
+        sheet.write(0,2,'Кол-во')
+        if f==1:
+            sheet.write(0,3,'Закупщик')
+        elif f==2:
+            sheet.write(0,3,"Кому списано")
+        sheet.write(0,4,'Дата')
+        i=1
+        if f==1:
+            for r in result:
+                print(r.name.name)
+                sheet.write(i,0,r.nak_id)
+                sheet.write(i,1,r.name.name)
+                sheet.write(i,2,r.fact_kol)
+                sheet.write(i,3,r.purchase.username)
+                sheet.write(i,4,datetime.strftime(r.date,"%d-%m-%Y"))
+                i+=1
+            book.save("media/prihod.xls")
+            print("ok")
+        elif f==2:
+            for r in result:
+                sheet.write(i,0,r.nak_id)
+                sheet.write(i,1,r.product_name)
+                sheet.write(i,2,r.kol)
+                sheet.write(i,3,r.receiver.receiver)
+                sheet.write(i,4,datetime.strftime(r.date,"%d-%m-%Y"))
+                i+=1
+            book.save("media/spis.xls")
+        print(len(result))
+    except Exception as e:
+        print(e)
+
+
+
+
 
 roles={
     1:"sklad.html",
@@ -326,22 +364,23 @@ def printing_barcodes(request):
         if request.method=="POST":
             barcod=request.POST.get("barcod")
             #kol,prim=request.POST.get("kol").split()
-            kol=int(request.POST.get("kol"))
-            text=kol.split("|")
+            kol=request.POST.get("kol")
+            text=kol.split("/")
             if len(text)==1:
-                kol=int(shtr_kol)
+                kol=int(kol)
                 com=""
             else:
                 kol=int(text[0])
                 com=text[1]
-            date=f"{barcod[-8:-6]}-{barcod[-6:-4]}-{barcod[-4:]}"
-            ddate=datetime.strptime(date,r"%d-%m-%Y").date()
-            print(ddate)
-            print(barcod)
-            print("$$$$$$$$$$$$$$$$",int(barcod[:-8]))
-            product=Products.objects.get(id=int(barcod[:-8])).name
+            #date=f"{barcod[-8:-6]}-{barcod[-6:-4]}-{barcod[-4:]}"
+            #ddate=datetime.strptime(date,r"%d-%m-%Y").date()
+            #print(ddate)
+            #print(barcod)
+            #print("$$$$$$$$$$$$$$$$",int(barcod[:-8]))
+            product=Products.objects.get(id=int(barcod[:-8]))
+            code = Codes.objects.get(shtrih=barcod)
             for i in range(kol):
-                print_barcode_2(product,ddate,barcod,com)
+                print_barcode_2(product.name,code.date,barcod,com,product.edizm.edizm)
             trash()
             return None
         else:
@@ -705,7 +744,7 @@ def get_barcode(request):
 def get_product_without_nakl(request):
     url=request.get_full_path().split("/")
     j=request.user.roles.role
-    products=Products.objects.all()
+    products=Products.objects.filter(prigot=True)
     if j==1 or j==8:
         if request.method!="POST":
             return render(request,"sklad_no_nakl.html",{"products":products})
@@ -713,10 +752,10 @@ def get_product_without_nakl(request):
             product=request.POST.get("product")
             kol=request.POST.get("kol")
             kol=round(float(kol),3)
-            date=request.POST.get("date")
+            #date=request.POST.get("date")
             date_now=datetime.now().date()
             shtr_kol=request.POST.get("shtr_kol",0)
-            text=shtr_kol.split("|")
+            text=shtr_kol.split("/")
             print(text,len(text))
             if len(text)==1:
                 shtr_kol=int(shtr_kol)
@@ -724,17 +763,18 @@ def get_product_without_nakl(request):
             else:
                 shtr_kol=int(text[0])
                 com=text[1]
-            srok=datetime.strptime(date,r"%Y-%m-%d").date()
+            #srok=datetime.strptime(date,r"%Y-%m-%d").date()
+            print("!!",product)
             prod=Products.objects.get(name=product)
-            barcod=generate_barcode(prod.id,srok)
+            barcod=generate_barcode(prod.id,d.date(2025,12,12))
             try:
                 c=Codes.objects.get(shtrih=barcod)
-                c.kolvo+=fact_kol
+                c.kolvo+=kol
                 c.save()
             except ObjectDoesNotExist:
                 Codes(name=prod,kolvo=kol,shtrih=barcod).save()
             for i in range(shtr_kol):
-                print_barcode_2(product,srok,barcod,com)
+                print_barcode_2(product,date_now,barcod,com,prod.edizm.edizm)
             print(4)
             trash()
             try:
@@ -743,7 +783,7 @@ def get_product_without_nakl(request):
                 st.save()
             except ObjectDoesNotExist:
                 Stock(name=prod,ostat=kol).save()
-            Without_nakl(name=prod,srok=date,fact_kol=kol,purchase=request.user,date=date_now).save()
+            Without_nakl(name=prod,srok=d.date(2025,12,12),fact_kol=kol,purchase=request.user,date=date_now).save()
             return render(request,"sklad_no_nakl.html",{"products":products})
 
 
@@ -758,9 +798,9 @@ def get_product(request):
             if url[3]=="zakup":
                 product=Purchase.objects.get(Q(nak_id=nak_id)&Q(id=pid))
                 kol=float(request.POST.get("kol"))
-                srok=request.POST.get("srok")
+                srok="2025-12-12"
                 shtr_kol=request.POST.get("shtr_kol")
-                text=shtr_kol.split("|")
+                text=shtr_kol.split("/")
                 if len(text)==1:
                     shtr_kol=int(shtr_kol)
                     com=""
@@ -781,8 +821,9 @@ def get_product(request):
                     if request.session.get("_zakup_pur_kol","!")=="!":
                         request.session["_zakup_pur_kol"]=product.purchased_kol
                         print(333,request.session.get("_zakup_pur_kol"))
+                    now_date=datetime.now().date()
                     product.fact_kol=fact_kol
-                    product.srok=srok
+                    product.srok=now_date
                     product.is_delivered=True
                     product.is_returned=False
                     barcod=generate_barcode(product.name.id,srok)
@@ -799,7 +840,7 @@ def get_product(request):
                         print("!@##$$@!@!@")
                     print("####")
                     for i in range(shtr_kol):
-                        print_barcode_2(product.name.name,srok,barcod,com)
+                        print_barcode_2(product.name.name,now_date,barcod,com,product.name.edizm.edizm)
                     print(4)
                     trash()
                     if fact_kol<product.purchased_kol:
@@ -819,7 +860,7 @@ def get_product(request):
                         if round(kol,3)>product.purchased_kol:
                             print("^^^^^^^^^^")
                             product.fact_kol=round(kol,3)
-                            product.srok=srok
+                            product.srok=now_date
                             product.is_delivered=True
                             product.is_returned=False
                             product.save()
@@ -1332,7 +1373,13 @@ def info_about_rediscount(request):
             b=1
         rediscount=Rediscount.objects.filter(red_id=r_id)
         products=[r.name for r in rediscount]
-        kol=[float(Stock.objects.get(name=r.name).ostat) for r in rediscount]
+        kol=[]
+        for r in rediscount:
+            try:
+                kolvo=float(Stock.objects.get(name=r.name).ostat)
+            except ObjectDoesNotExist:
+                kolvo=0.0
+            kol.append(kolvo)
         average=[]
         for r in rediscount:
             #print(r.name)
@@ -1369,6 +1416,7 @@ def info_about_rediscount(request):
             ssumm=0
         plus=[]
         minus=[]
+        ind=0
         for r in rediscount:
             if r.kol>0:
                 plus.append(float(r.kol))
@@ -1442,15 +1490,36 @@ def info_table(request):
     j=request.user.roles.role
     job=Roles.choices[j-1][1]
     if j==8:
+        print("!!!")
         products=Products.objects.all()
+        nakls_zakup=[]
+        names_zakup=[]
+        for p in Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)):
+            if int(p.nak_id) not in nakls_zakup:
+                nakls_zakup.append(int(p.nak_id))
+        print(123)
+        for u in User.objects.all():
+            if u.username not in names_zakup:
+                names_zakup.append(u.username)
+        print(567)
+        nakls_spis=[]
+        names_spis=[]
+        s_id=Spis.objects.filter(is_removed=False).last().nak_id
+        print(Spis.objects.filter(Q(is_removed=False)&Q(nak_id__gte=(s_id-50))).count())
+        for s in Spis.objects.filter(Q(is_removed=False)&Q(nak_id__gte=(s_id-50))):
+            if int(s.nak_id) not in nakls_spis:
+                nakls_spis.append(int(s.nak_id))
+            if s.receiver.receiver not in names_spis:
+                names_spis.append(s.receiver.receiver)
+        print(890)
         url=request.get_full_path().split("/")
         if request.method!="POST":
             if url[3]=="receipt":
                 nakl=Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True))
-                return render(request,"info_table.html",{"ind":1,"nak":nakl,"products":products})
+                return render(request,"info_table.html",{"ind":1,"nak":nakl,"products":products,"nakls":nakls_zakup,"names_zakup":names_zakup})
             elif url[3]=="consumption":
                 nakl=Spis.objects.filter(is_removed=False)
-                return render(request,"info_table.html",{"ind":2,"nak":nakl,"products":products})
+                return render(request,"info_table.html",{"ind":2,"nak":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
         else:
             print("!!!!")
             from itertools import chain
@@ -1459,53 +1528,111 @@ def info_table(request):
             to=request.POST.get("to","")
             name=request.POST.get("name","")
             product=request.POST.get("product","")
-            if nak_id=="" and date=="" and name=="" and product=="" and to=="":
+            date=date if date!="" else d.date(2018,1,1)
+            to=to if to!="" else datetime.today()
+            print(date,to)
+            if nak_id=="" and name=="" and product=="":
                 if url[3]=="receipt":
                     nakl=Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True))
-                    return render(request,"info_table.html",{"ind":1,"nak":nakl,"products":products})
+                    return render(request,"info_table.html",{"ind":1,"nak":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
                 elif url[3]=="consumption":
                     nakl=Spis.objects.filter(is_removed=False)
-                    return render(request,"info_table.html",{"ind":2,"nak":nakl,"products":products})
-            elif nak_id!="":
+                    #create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nak":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif nak_id!="" and name!="" and product!="":
                 print("$$$$$$")
                 if url[3]=="receipt":
-                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(nak_id=int(nak_id))),Without_nakl.objects.filter(nak_id=nak_id))
-                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(purchase__username=name)&Q(is_delivered=True)&Q(name__name=product)&Q(nak_id=int(nak_id))&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(nak_id=nak_id)&Q(purchase__username=name)&Q(date__gte=date)&Q(date__lte=to)&Q(name__name=product)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
                 elif url[3]=="consumption":
-                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(nak_id=int(nak_id)))
-                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
-            elif date!="":
-                if to=="":
-                    to=datetime.today()
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(nak_id=int(nak_id))&Q(receiver__receiver=name)&Q(product_name=product))
+                    #nakl=list(nakl)
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif nak_id!="" and name!="":
                 if url[3]=="receipt":
-                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)))
-                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(purchase__username=name)&Q(is_delivered=True)&Q(nak_id=int(nak_id))&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(nak_id=nak_id)&Q(purchase__username=name)&Q(date__gte=date)&Q(date__lte=to)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
                 elif url[3]=="consumption":
-                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(date__gte=date)&Q(date__lte=to))
-                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
-            elif to!="":
-                if date=="":
-                    date=d.date(2018,1,1)
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(nak_id=int(nak_id))&Q(receiver__receiver=name))
+                    #nakl=list(nakl)
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif nak_id!="" and product!="":
                 if url[3]=="receipt":
-                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)))
-                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(name__name=product)&Q(nak_id=int(nak_id))&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(nak_id=nak_id)&Q(date__gte=date)&Q(date__lte=to)&Q(name__name=product)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
                 elif url[3]=="consumption":
-                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(date__gte=date)&Q(date__lte=to))
-                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(nak_id=int(nak_id))&Q(product_name=product))
+                    #nakl=list(nakl)
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif name!="" and product!="":
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(purchase__username=name)&Q(is_delivered=True)&Q(name__name=product)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(purchase__username=name)&Q(date__gte=date)&Q(date__lte=to)&Q(name__name=product)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(receiver__receiver=name)&Q(product_name=product))
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
             elif name!="":
                 if url[3]=="receipt":
-                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(purchase__username=name)),Without_nakl.objects.filter(purchase__username=name))
-                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(purchase__username=name)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(purchase__username=name)&Q(date__gte=date)&Q(date__lte=to)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
                 elif url[3]=="consumption":
                     nakl=Spis.objects.filter(Q(is_removed=False)&Q(receiver__receiver=name))
-                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif nak_id!="":
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(nak_id=int(nak_id))&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(nak_id=nak_id)&Q(date__gte=date)&Q(date__lte=to)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(nak_id=int(nak_id)))
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
             elif product!="":
                 if url[3]=="receipt":
-                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(name__name=product)),Without_nakl.objects.filter(name__name=product))
-                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products})
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(name__name=product)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)&Q(name__name=product)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
                 elif url[3]=="consumption":
                     nakl=Spis.objects.filter(Q(is_removed=False)&Q(product_name=product))
-                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products})
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif date!="":
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(date__gte=date)&Q(date__lte=to))
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
+            elif to!="":
+                if url[3]=="receipt":
+                    nakl=chain(Purchase.objects.filter(Q(is_returned=False)&Q(is_delivered=True)&Q(date__gte=date)&Q(date__lte=to)),Without_nakl.objects.filter(Q(date__gte=date)&Q(date__lte=to)))
+                    nakl=list(nakl)
+                    create_xls_search_results(1,nakl)
+                    return render(request,"info_table.html",{"ind":1,"nakl":nakl,"products":products,"nakls":nakls_zakup,"names":names_zakup})
+                elif url[3]=="consumption":
+                    nakl=Spis.objects.filter(Q(is_removed=False)&Q(date__gte=date)&Q(date__lte=to))
+                    create_xls_search_results(2,nakl)
+                    return render(request,"info_table.html",{"ind":2,"nakl":nakl,"products":products,"nakls":nakls_spis,"names":names_spis})
 
 @login_required
 def buy_products(request):
@@ -2442,4 +2569,5 @@ def delete_saler(request):
     for ing_id in ing_ids:
         Ingredients.objects.get(id=int(ing_id)).delete()
     return redirect("..")
+
 

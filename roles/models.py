@@ -21,6 +21,8 @@ class Codes(models.Model):
     shtrih = models.CharField(max_length=50,verbose_name="Штрих-код")
     kolvo = models.FloatField(verbose_name="Кол-во")
     name = models.ForeignKey('Products', on_delete=models.PROTECT, blank=True, null=True,verbose_name="Продукт")
+    from datetime import date
+    date = models.DateField(default=date.today)
     def __str__(self):
         return self.name.name
     class Meta:
