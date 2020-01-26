@@ -5,6 +5,16 @@
 <head>
     <title>Итог переучета</title>
     <meta charset="utf-8">
+    <style type="text/css">
+    .hide-zero .zero {
+        display: none;
+        }
+    </style>
+    <script type="text/javascript">
+        function toggle() {
+            document.querySelector('table').classList.toggle('hide-zero');
+        }
+    </script>
 </head>
 <body>
     <p align="center">
@@ -14,8 +24,11 @@
             <li><b>Прогресс: </b>{{progress}}</li>
             <li><b>Провел: </b> {{info.user}}</li>
             <li><b>Статус: </b>{{status}}</li>
+            <li><b><input type="checkbox" id="chkTest" onchange="toggle()">
+            <label for="chkTest">Скрыть строки</label></b></li>
         </p>
-        <table border="1px">
+
+        <table border="1px" id="table">
             <caption>Подробности</caption>
             <tr>
                 <th>Продукт</th>
@@ -27,7 +40,7 @@
                 <th>    </th>
             </tr>
             {% for i in range %}
-            <tr>
+            <tr class="{{classes|index:i}}">
                 <td>{{products|index:i}}</td>
                 <td>{{kol|index:i}}</td>
                 <td>{{average|index:i}}</td>
@@ -48,6 +61,7 @@
                 <td colspan="6">Превышение продуктов на сумму</td>
                 <td>{{plus_summ}}</td>
             </tr>
+        </table>
     </p>
 </body>
 </html>

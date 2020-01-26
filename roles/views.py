@@ -249,7 +249,13 @@ def profile(request):
             indic=1
         else:
             indic=0
-        return render(request,roles[4],{"job":job,"form":form,"indic":indic,"f":f,"last_id":last_id})
+        w=Without_nakl.objects.filter(is_accepted=False)
+        if w.count()!=0:
+            w_nak_id=w.last().nak_id
+        else:
+            w=Without_nakl.objects.filter(is_accepted=True)
+            w_nak_id=int(w.last().nak_id)+1
+        return render(request,roles[4],{"job":job,"form":form,"indic":indic,"f":f,"last_id":last_id,"nak_id":w_nak_id})
     elif j==2 or (url[3]=="kassir" and j==8):
         abs_nakl=Purchase.objects.all()
         nakl=Purchase.objects.filter(Q(is_accepted=False)&Q(is_delivered=True))
@@ -745,9 +751,11 @@ def get_product_without_nakl(request):
     url=request.get_full_path().split("/")
     j=request.user.roles.role
     products=Products.objects.filter(prigot=True)
-    if j==1 or j==8:
+    if j==1 or j==8 or j==4:
+        nak_id=request.GET.get("n")
+        nakl=Without_nakl.objects.filter(Q(nak_id=nak_id)&Q(is_accepted=False))
         if request.method!="POST":
-            return render(request,"sklad_no_nakl.html",{"products":products})
+            return render(request,"sklad_no_nakl.html",{"products":products,"nakl":nakl,"nak_id":nak_id})
         else:
             product=request.POST.get("product")
             kol=request.POST.get("kol")
@@ -767,25 +775,66 @@ def get_product_without_nakl(request):
             print("!!",product)
             prod=Products.objects.get(name=product)
             barcod=generate_barcode(prod.id,d.date(2025,12,12))
-            try:
+            '''try:
                 c=Codes.objects.get(shtrih=barcod)
                 c.kolvo+=kol
                 c.save()
             except ObjectDoesNotExist:
                 Codes(name=prod,kolvo=kol,shtrih=barcod).save()
+            '''
             for i in range(shtr_kol):
                 print_barcode_2(product,date_now,barcod,com,prod.edizm.edizm)
             print(4)
             trash()
+            '''
             try:
                 st=Stock.objects.get(name=prod)
                 st.ostat+=kol
                 st.save()
             except ObjectDoesNotExist:
                 Stock(name=prod,ostat=kol).save()
-            Without_nakl(name=prod,srok=d.date(2025,12,12),fact_kol=kol,purchase=request.user,date=date_now).save()
-            return render(request,"sklad_no_nakl.html",{"products":products})
+            '''
+            Without_nakl(nak_id=nak_id,name=prod,srok=d.date(2025,12,12),fact_kol=kol,purchase=request.user,date=date_now).save()
+            return render(request,"sklad_no_nakl.html",{"products":products,"nakl":nakl,"nak_id":nak_id})
 
+@login_required
+def delete_product_without_nakl(request):
+    url=request.get_full_path().split("/")
+    j=request.user.roles.role
+    products=Products.objects.filter(prigot=True)
+    if j==1 or j==8 or j==4:
+        nak_id=int(request.GET.get("n"))
+        p_id=int(request.GET.get("id"))
+        product=Without_nakl.objects.get(Q(id=p_id)&Q(nak_id=nak_id))
+        product.delete()
+        return redirect(f"/accounts/profile/no_nakl?n={nak_id}")
+
+
+@login_required
+def accept_product_without_nakl(request):
+    url=request.get_full_path().split("/")
+    j=request.user.roles.role
+    products=Products.objects.filter(prigot=True)
+    if j==1 or j==8:
+        nak_id=int(request.GET.get("n"))
+        products=Without_nakl.objects.filter(Q(nak_id=nak_id)&Q(is_accepted=False))
+        for p in products:
+            barcod=generate_barcode(p.name.id,d.date(2025,12,12))
+            try:
+                c=Codes.objects.get(shtrih=barcod)
+                c.kolvo+=p.fact_kol
+                c.save()
+            except ObjectDoesNotExist:
+                Codes(name=p.name,kolvo=p.fact_kol,shtrih=barcod).save()
+            try:
+                st=Stock.objects.get(name=p.name)
+                st.ostat+=p.fact_kol
+                st.save()
+            except ObjectDoesNotExist:
+                Stock(name=p.name,ostat=p.fact_kol).save()
+            p.is_accepted=True
+            p.save()
+        return redirect("/accounts/profile/")
 
 @login_required
 def get_product(request):
@@ -1279,7 +1328,13 @@ def choose_type(request):
     j=request.user.roles.role
     job=Roles.choices[j-1][1]
     if j==1 or j==8:
-        return render(request,"sklad_select_type.html")
+        n=Without_nakl.objects.filter(is_accepted=False)
+        if n.count()!=0:
+            nak_id=n.last().nak_id
+        else:
+            n=Without_nakl.objects.filter(is_accepted=True)
+            nak_id=int(n.last().nak_id)+1
+        return render(request,"sklad_select_type.html",{"nak_id":nak_id})
     else:
         return redirect("/accounts/profile")
 
@@ -1416,17 +1471,21 @@ def info_about_rediscount(request):
             ssumm=0
         plus=[]
         minus=[]
+        classes=[]
         ind=0
         for r in rediscount:
             if r.kol>0:
                 plus.append(float(r.kol))
                 minus.append(" ")
+                classes.append("non-zero")
             elif r.kol<0:
                 minus.append(float(r.kol))
                 plus.append(" ")
+                classes.append("non-zero")
             else:
                 minus.append(" ")
                 plus.append(" ")
+                classes.append("zero")
         status="Закончен" if b==0 else "В процессе"
         stock=Stock.objects.all()
         redisc=Rediscount.objects.filter(red_id=r_id)
@@ -1447,6 +1506,7 @@ def info_about_rediscount(request):
         return render(request,"rediscount_info.html",
             {
             "range":range(rediscount.count()),
+            "classes":classes,
             #"info":rediscount_info,
             "products":products,
             "kol":kol,

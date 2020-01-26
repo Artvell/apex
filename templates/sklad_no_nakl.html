@@ -22,6 +22,21 @@
             <h3>Кол-во штрих-кодов:</h3><input type="text" name="shtr_kol" value="0">
             <input type="submit" value="Принять">
         </form>
+        <table border="1px">
+            <tr>
+                <th>Продукт</th>
+                <th>Кол-во</th>
+                <th>Удалить</th>
+            </tr>
+            {% for n in nakl %}
+            <tr>
+                <th>{{n.name}}</th>
+                <th>{{n.fact_kol}}</th>
+                <th><a href="/accounts/profile/del_no_nakl?n={{n.nak_id}}&id={{n.id}}"><img src="https://img1.freepng.ru/20180402/yoe/kisspng-red-x-letter-computer-icons-red-x-5ac2fb756a5ad0.2651157915227277974356.jpg" width="55" height="25"></a></th>
+            </tr>
+            {% endfor %}
+        </table>
+        <h3><a href="/accounts/profile/accept_no_nakl/?n={{nak_id}}">Отправить</a></h3>
     </p>
 </body>
 </html>

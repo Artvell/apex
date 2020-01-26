@@ -49,6 +49,8 @@ urlpatterns = [
     path('accounts/profile/zakup/nak_id',views.get_products),
     path('accounts/profile/zagot/nak_id',views.get_products),
     path('accounts/profile/no_nakl/',views.get_product_without_nakl),
+    path('accounts/profile/accept_no_nakl/',views.accept_product_without_nakl),
+    path('accounts/profile/del_no_nakl/',views.delete_product_without_nakl),
     path('accounts/profile/zakup/reset',views.reset_nak_id),
     path('accounts/profile/zagot/reset',views.reset_nak_id),
     path('accounts/profile/codes_table',views.table_of_barcodes),

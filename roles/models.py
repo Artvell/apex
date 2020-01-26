@@ -343,6 +343,7 @@ class Without_nakl(models.Model):
     srok = models.DateField(blank=True, null=True,verbose_name="Срок годности")
     purchase = models.ForeignKey(User,on_delete=models.PROTECT, blank=True, null=True,verbose_name="От кого?")
     fact_kol=models.FloatField(verbose_name="Фактическое кол-во",blank=True, null=True,default=0.0)
+    is_accepted=models.BooleanField(verbose_name="Отправдено",default=False)
     date=models.DateField(blank=True, null=True,verbose_name="Дата")
     def __str__(self):
         return self.name.name
