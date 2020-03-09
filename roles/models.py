@@ -448,6 +448,7 @@ class Rediscount(models.Model):
     red_id = models.IntegerField(verbose_name="Номер переучета",default=0)
     name=models.ForeignKey(Products, models.DO_NOTHING, blank=True, null=True,verbose_name="Товар")
     kol = models.FloatField(verbose_name="Кол-во",default=0.0)
+    st_kol = models.FloatField(verbose_name="На складе",default=0.0)
     def __str__(self):
         return str(self.red_id)
     class Meta:

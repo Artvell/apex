@@ -26,17 +26,25 @@
             <tr>
                 <th>Продукт</th>
                 <th>Кол-во</th>
+                {% if ind != 1 %}
                 <th>Удалить</th>
+                {% endif %}
             </tr>
             {% for n in nakl %}
             <tr>
                 <th>{{n.name}}</th>
                 <th>{{n.fact_kol}}</th>
+                {% if ind != 1 %}
                 <th><a href="/accounts/profile/del_no_nakl?n={{n.nak_id}}&id={{n.id}}"><img src="https://img1.freepng.ru/20180402/yoe/kisspng-red-x-letter-computer-icons-red-x-5ac2fb756a5ad0.2651157915227277974356.jpg" width="55" height="25"></a></th>
+                {% endif %}
             </tr>
             {% endfor %}
         </table>
+        {% if ind != 4 %}
         <h3><a href="/accounts/profile/accept_no_nakl/?n={{nak_id}}">Отправить</a></h3>
+        {% endif %}
+        <br/>
+        <h3><a href="/accounts/profile/products_no_nakl/?n={{nak_id}}" target="_blank">Печать</a></h3>
     </p>
 </body>
 </html>

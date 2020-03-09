@@ -1,0 +1,43 @@
+{% include "profile_admin.html" %}
+{% load custom_templates %}
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+    </head>
+     <body>
+        <table border="1px">
+            <tr>
+                <th><a href="/accounts/profile/all_receipt?s=1">№ накладной</a></th>
+                <th><a href="/accounts/profile/all_receipt?s=2">Дата</a></th>
+                <th><a href="/accounts/profile/all_receipt?s=3">Сумма</a></th>
+                <th><a href="/accounts/profile/all_receipt?s=4">От кого</th>
+            </tr>
+            {% for i in range %}
+            <tr>
+                <td>{{nakls|index:i}}</td>
+                <td>{{dates|index:i}}</td>
+                <td>{{summ|index:i}}</td>
+                <td>{{purchase|index:i}}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <!--<div class="pagination">
+            <span class="step-links">
+                {% if products.has_previous %}
+                    <a href="?page=1">&laquo; Первая</a>
+                    <a href="?page={{ products.previous_page_number }}">Предыдущая</a>
+                {% endif %}
+
+                <span class="current">
+                    Страница {{ products.number }} из {{ products.paginator.num_pages }}.
+                </span>
+
+                {% if products.has_next %}
+                    <a href="?page={{ products.next_page_number }}">Следующая</a>
+                    <a href="?page={{ products.paginator.num_pages }}">Последняя &raquo;</a>
+                {% endif %}
+            </span>
+        </div>-->
+
+    </body>
+</html>

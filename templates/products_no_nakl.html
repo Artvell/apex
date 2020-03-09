@@ -1,0 +1,70 @@
+{% load custom_templates %}
+{% include "profile.html" %}
+<!DOCTYPE HTML>
+<html>
+ <head>
+  <meta charset="utf-8">
+  <title>Накладная</title>
+  <script type="text/javascript">
+  function printPageArea(areaID){
+    var printContent = document.getElementById(areaID);
+    var WinPrint = window.open('', '', 'width=900,height=650');
+    WinPrint.document.write(printContent.innerHTML);
+    WinPrint.document.close();
+    WinPrint.focus();
+    WinPrint.print();
+    WinPrint.close();
+}
+  </script>
+  <style>
+   table {
+    /*width: 300px; /* Ширина таблицы */
+    border: 1px solid black; /* Рамка вокруг таблицы */
+    margin: auto; /* Выравниваем таблицу по центру окна  */
+    border-collapse: collapse;
+   }
+   td {
+    text-align: center; /* Выравниваем текст по центру ячейки */
+   }
+   #table
+   {
+    margin:auto;
+   }
+  @media print {
+    /* здесь будут стили для печати */
+     table {
+      /*width: 300px; /* Ширина таблицы */
+      border: 1px solid black; /* Рамка вокруг таблицы */
+      margin: auto; /* Выравниваем таблицу по центру окна  */
+      border-collapse: collapse;
+   }
+      #table{
+      margin:auto;
+    }
+    }
+</style>
+ </head>
+ <body>
+ <div id="table" style="border-collapse: collapse;">
+  <table border="1px">
+   <caption><br/>Накладная на приход № {{n}}<br/>{{date}}<br/>Статус:{{status}}<br/><br/></caption>
+   <tr>
+    <th>Продукт</th>
+    <th>Ед.изм.</th>
+    <th>Кол-во</th>
+    <th>От кого?</th>
+   </tr>
+   {% for p in products %}
+      <tr>
+      <tr><td style="width: 500px;">{{p.name}}</td>
+      <td style="width: 100px;">{{p.name.edizm.edizm}}</td>
+      <td style="width: 200px;">{{p.fact_kol}}</td>
+      <td style="width: 200px;">{{p.purchase.username}}</td></tr>
+    {% endfor %}
+  </table>
+  <br/><br/><br/>
+
+</div>
+<button onclick="printPageArea('table')">Печать</button>
+ </body>
+</html>

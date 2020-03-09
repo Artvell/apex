@@ -62,6 +62,9 @@
                 <td>{{plus_summ}}</td>
             </tr>
         </table>
+        {% if link != "" %}
+        <a href="/media/{{link}}" download>Скачать результат в Excel</a>
+        {% endif %}
     </p>
 </body>
 </html>

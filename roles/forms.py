@@ -32,7 +32,7 @@ class GetForm(forms.Form):
         self.fields['kol']=forms.FloatField(label="Количество")
         #shtrih=forms.IntegerField(label="Штрих код")
         #self.fields['srok']=forms.DateField(label="Срок годности")
-        self.fields['shtr_kol']=forms.IntegerField(label="Количество штрих-кодов")
+        self.fields['shtr_kol']=forms.CharField(label="Количество штрих-кодов")
 
 class GetForm2(forms.Form):
     kol=forms.FloatField(label="Количество")
